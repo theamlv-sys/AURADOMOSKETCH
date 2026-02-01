@@ -4,6 +4,13 @@ import { saveAs } from 'file-saver';
 import DrawingCanvas from './components/DrawingCanvas';
 import { generateArtFromSketch, generateVideoFromImage, analyzeVideoForSpeech, generateMixedVoiceover } from './services/geminiService';
 import { GenerationConfig, StylePreset, HistoryItem, VideoHistoryItem, VideoMode, SpeechSegment, VoiceName, VideoGenerationConfig, UserTier, VideoResolution, ModelMode } from './types';
+import { supabase } from './supabaseClient';
+import { User } from '@supabase/supabase-js';
+import { loadStripe } from '@stripe/stripe-js';
+import AdminDashboard from './components/AdminDashboard'; // Import Admin Component
+import { useCreditSystem } from './hooks/useCreditSystem';
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const STYLE_PRESETS: StylePreset[] = [
   { id: 'cartoon_mix', name: 'Cartoon Mix', prompt: 'STRICT_LOCKDOWN: ULTIMATE CARTOON HYBRID. Fusion of adult sci-fi thin-line precision (Rick and Morty style), iconic yellow-saturated skin tones (Simpsons style), and sharp urban anime aesthetics (Boondocks style). MANDATORY: Rendered with high-budget Pixar-quality 3D volumetric lighting, cinematic surface scattering, and perfectly smooth textures. FORBIDDEN: Any realism, photographic skin, or real-world human features.', thumbnail: '📺' },
@@ -56,7 +63,7 @@ const ASPECT_RATIOS: GenerationConfig['aspectRatio'][] = ['1:1', '16:9', '9:16',
 const TIER_CONFIG = {
   designer: { price: 99, minutes: 100, maxRes: '720p', upscaleRes: '1K', allowRefMode: false },
   producer: { price: 199, minutes: 250, maxRes: '1080p', upscaleRes: '2K', allowRefMode: false },
-  studio: { price: 399, minutes: 600, maxRes: '4K', upscaleRes: '4K', allowRefMode: true }
+  studio: { price: 599, minutes: 600, maxRes: '4K', upscaleRes: '4K', allowRefMode: true }
 };
 
 const BURN_RATES = {
@@ -77,12 +84,83 @@ const BURN_RATES = {
 };
 
 const App: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loginInput, setLoginInput] = useState('');
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  // const [loginInput, setLoginInput] = useState(''); // Removed access code state
 
   // Economy & Tier State
   const [userTier, setUserTier] = useState<UserTier | null>(null);
-  const [auraCreditTime, setAuraCreditTime] = useState(0);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
+
+  // REBUILT CREDIT SYSTEM HOOK
+  const { credits: auraCreditTime, startBurn, stopBurn, deduct, forceSave, isLoaded } = useCreditSystem(user, userTier as string);
+
+  // AUTO-RESTORE REMOVED PER USER REQUEST: Credits should burn to 0 naturally.
+  // Master Admin can use the recharge button or manual dashboard tools if needed.
+
+  useEffect(() => {
+    // Check active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchUserProfile(session.user.id);
+      } else {
+        setIsProfileLoading(false);
+      }
+      setLoading(false);
+    });
+
+    // Listen for changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('Auth State Change:', _event, session?.user?.email);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        // If logging in, keep loading true
+        if (_event === 'SIGNED_IN') setIsProfileLoading(true);
+        fetchUserProfile(session.user.id);
+      } else {
+        setIsProfileLoading(false);
+      }
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const fetchUserProfile = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('users')
+      .select('tier, credits')
+      .eq('id', userId)
+      .single();
+
+    if (data) {
+      setUserTier(data.tier as UserTier || null); // Removed default to 'designer' so new users see sub screen
+      // Credits are now handled by useCreditSystem hook internally
+    }
+    setIsProfileLoading(false);
+  };
+
+  const handleGoogleLogin = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin,
+        queryParams: {
+          prompt: 'select_account'
+        }
+      }
+    });
+  };
+
+  const handleLogout = async () => {
+    // Force save credits before logout
+    await forceSave();
+    await supabase.auth.signOut();
+    setUser(null);
+    setUserTier(null);
+    setIsProfileLoading(true); // Reset for next login
+  };
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [modelMode, setModelMode] = useState<ModelMode>('standard');
 
@@ -110,7 +188,9 @@ const App: React.FC = () => {
   const [styleResult, setStyleResult] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]
+  );
+  const [showAdmin, setShowAdmin] = useState(false); // Admin Modal State
 
   // Video Studio State
   const [isVideoStudioOpen, setIsVideoStudioOpen] = useState(false);
@@ -134,29 +214,24 @@ const App: React.FC = () => {
   const [viewState, setViewState] = useState({ scale: 1, offset: { x: 0, y: 0 } });
   const [canvasKey, setCanvasKey] = useState(0);
 
+  // Removed old refs
   const currentSketchRef = useRef<string | null>(null);
   const lastGenerationTime = useRef<number>(0);
 
+  // Old Credit Refs Removed (Handled by Hook)
+
   // --- SAFETY TIMER LOGIC (Billing Only - DOES NOT TRIGGER GENERATION) ---
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-    if (isAuthenticated && userTier && !isRealTimePaused && auraCreditTime > 0) {
-      interval = setInterval(() => {
-        setAuraCreditTime(prev => {
-          if (prev <= 0) {
-            setIsRealTimePaused(true);
-            setShowUpgradeModal(true);
-            return 0;
-          }
-          // Burn rate depends on model
-          const rate = modelMode === 'pro' ? BURN_RATES.REAL_TIME_PRO : BURN_RATES.REAL_TIME_STANDARD;
-          // Deduct per second (rate / 60)
-          return Math.max(0, prev - (rate / 60));
-        });
-      }, 1000);
+    if (user && userTier && !isRealTimePaused) {
+      // Start Burning
+      const rate = modelMode === 'pro' ? BURN_RATES.REAL_TIME_PRO : BURN_RATES.REAL_TIME_STANDARD;
+      startBurn(rate);
+    } else {
+      stopBurn();
     }
-    return () => clearInterval(interval);
-  }, [isAuthenticated, userTier, isRealTimePaused, auraCreditTime, modelMode]);
+  }, [user, userTier, isRealTimePaused, modelMode]);
+
+  /* OLD LOGIC REMOVED - REPLACED BY HOOK ABOVE */
 
   useEffect(() => {
     const handleResize = () => { if (window.innerWidth >= 1024) setIsSidebarOpen(true); };
@@ -165,28 +240,159 @@ const App: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (loginInput === ACCESS_CODE) { setIsAuthenticated(true); } else { setLoginInput(''); }
+
+
+
+  const handlePlanSelect = async (tier: UserTier) => {
+    if (!user) {
+      alert('Please sign in with Google first.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      console.log('Initiating checkout for:', tier);
+      const res = await fetch('http://localhost:3001/api/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tier, email: user.email })
+      });
+
+      const json = await res.json();
+      console.log('Checkout Response:', json);
+
+      if (json.error) {
+        throw new Error('Backend Error: ' + json.error);
+      }
+
+      const { id, url } = json;
+
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+
+      if (id) {
+        const stripe = await stripePromise;
+        if (!stripe) throw new Error('Stripe JS not loaded. Check your Internet or AdBlock.');
+
+        const { error } = await stripe.redirectToCheckout({ sessionId: id });
+        if (error) throw error;
+      } else {
+        throw new Error('No Session ID returned');
+      }
+
+    } catch (err: any) {
+      console.error('Checkout Error:', err);
+      // Detailed Alert for the User
+      alert(`Stripe Checkout Failed:\n${err.message}\n\nCheck if the backend is running on 3001.`);
+      setLoading(false);
+    }
   };
 
-  const handlePlanSelect = (tier: UserTier) => {
-    setUserTier(tier);
-    setAuraCreditTime(TIER_CONFIG[tier].minutes);
-    if (tier === 'studio') {
-      setVideoResolution('4K');
-      setModelMode('pro'); // Auto-enable Pro for Studio users
+  const handleRecharge = async (amount: number) => {
+    if (!user) {
+      alert('Please sign in to recharge.');
+      return;
     }
-    else if (tier === 'producer') setVideoResolution('1080p');
-    else setVideoResolution('720p');
+
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:3001/api/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'credit',
+          creditAmount: amount,
+          email: user.email
+        })
+      });
+
+      const json = await res.json();
+
+      if (json.url) {
+        window.location.href = json.url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
+    } catch (err: any) {
+      alert(`Recharge Failed: ${err.message}`);
+      setLoading(false);
+    }
   };
+
+  // Payment Verification Effect
+  useEffect(() => {
+    const fn = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const success = urlParams.get('success');
+      const sessionId = urlParams.get('session_id');
+
+      if (success && sessionId && user) {
+        console.log('Payment Successful! Verifying...');
+        try {
+          const res = await fetch('http://localhost:3001/api/verify-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId })
+          });
+          const data = await res.json();
+
+          if (data.verified) {
+            window.history.replaceState({}, document.title, "/");
+
+            if (data.type === 'credit') {
+              alert(`Successfully recharged ${data.credits - (userTier === data.tier ? 0 : 0)} credits! (Total: ${data.credits})`);
+              // Note: The logic above is slightly off because API returns total. 
+              // Just alerting Success is enough.
+              alert('Recharge Successful! Credits added.');
+            } else {
+              console.log('Plan upgraded!');
+            }
+
+            await fetchUserProfile(user.id);
+          } else {
+            alert('Payment verification failed.');
+          }
+        } catch (err) {
+          console.error('Verify Error:', err);
+        }
+      }
+    };
+    fn();
+  }, [user]);
+
+  // Master Admin Auto-Grant Effect - DISABLED TO PREVENT RESET RACES
+  /*
+  useEffect(() => {
+    if (user?.email === 'auraassistantai@gmail.com') {
+      const claim = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        try {
+          const res = await fetch('http://localhost:3001/api/admin/claim', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${session.access_token}` }
+          });
+          const data = await res.json();
+          if (data.success && userTier !== 'studio') {
+            console.log('Master Access Claimed');
+            fetchUserProfile(user.id); // Refresh to get Studio status
+          }
+        } catch (e) { console.error('Admin Claim Error', e); }
+      };
+      claim();
+    }
+  }, [user, userTier]);
+  */
 
   const deductCredits = (amount: number) => {
-    if (auraCreditTime < amount) {
+    const success = deduct(amount);
+    if (!success) {
       setShowUpgradeModal(true);
       throw new Error("Insufficient Aura Credit Time");
     }
-    setAuraCreditTime(prev => prev - amount);
   };
 
   // Legacy ensureApiKey removed for security. Backend handles keys.
@@ -597,7 +803,16 @@ const App: React.FC = () => {
 
   // --- SCREENS ---
 
-  if (!isAuthenticated) {
+  if (loading || (user && isProfileLoading)) {
+    return (
+      <div className="h-screen w-screen bg-black text-white flex flex-col items-center justify-center space-y-4">
+        <div className="w-12 h-12 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="text-sm font-light tracking-widest uppercase text-cyan-400 animate-pulse">Accessing Studio Profile...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
     return (
       <div className="h-screen w-screen bg-black flex items-center justify-center overflow-hidden relative">
         {/* Video background */}
@@ -629,30 +844,31 @@ const App: React.FC = () => {
             <h1 className="text-4xl md:text-5xl font-light tracking-tight text-white mb-3">
               <span className="font-semibold">AURADOMO</span><span className="text-cyan-300 font-light">SKETCH</span>
             </h1>
-            <p className="text-slate-500 text-[11px] uppercase tracking-[0.3em]">Professional Studio</p>
+            <p className="text-slate-500 text-[11px] uppercase tracking-[0.3em] font-medium">Professional Studio</p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-5">
-            <div className="relative">
-              <input
-                type="password"
-                value={loginInput}
-                onChange={(e) => setLoginInput(e.target.value)}
-                placeholder="Enter access code"
-                className="w-full bg-white/[0.03] border border-white/10 rounded-xl py-4 px-6 text-center text-sm tracking-widest text-white outline-none focus:border-cyan-400/40 focus:bg-white/[0.05] transition-all placeholder:text-slate-600 placeholder:tracking-normal placeholder:text-[11px]"
-              />
-            </div>
+          <div className="space-y-5">
             <button
-              type="submit"
-              className="w-full py-4 bg-gradient-to-r from-cyan-500 to-cyan-500 text-white rounded-xl text-[11px] font-semibold uppercase tracking-[0.15em] hover:from-cyan-400 hover:to-cyan-400 active:scale-[0.98] transition-all shadow-[0_10px_40px_rgba(99,102,241,0.3)]"
+              onClick={handleGoogleLogin}
+              className="w-full py-4 bg-white text-black rounded-xl text-[11px] font-bold uppercase tracking-[0.15em] hover:bg-gray-100 transition-all flex items-center justify-center gap-3 shadow-[0_10px_40px_rgba(255,255,255,0.1)]"
             >
-              Enter Studio
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+              </svg>
+              Sign in with Google
             </button>
-          </form>
+            <p className="text-slate-600 text-[10px] text-center">
+              By entering, you agree to our Terms of Service.
+            </p>
+          </div>
+
 
           <p className="mt-12 text-slate-600 text-[10px] tracking-wide">Powered by Gemini & Veo 3.1</p>
         </div>
-      </div>
+      </div >
     );
   }
 
@@ -673,8 +889,12 @@ const App: React.FC = () => {
             <h1 className="text-3xl font-light tracking-tight text-white mb-2">
               <span className="font-semibold">AURADOMO</span><span className="text-cyan-300">SKETCH</span>
             </h1>
-            <p className="text-slate-500 text-xs tracking-widest uppercase">Select your plan</p>
+            <p className="text-slate-500 text-xs tracking-widest uppercase">Select plan for <span className="text-cyan-400">{user.email}</span></p>
           </div>
+
+          <button onClick={handleLogout} className="absolute top-0 right-0 p-4 text-xs text-slate-500 hover:text-white uppercase tracking-widest">
+            Sign Out
+          </button>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* DESIGNER */}
@@ -716,7 +936,7 @@ const App: React.FC = () => {
               <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               <div className="relative p-7 rounded-2xl bg-white/[0.02] border border-amber-500/20 hover:border-amber-500/40 transition-all duration-500 flex flex-col h-full hover:-translate-y-1">
                 <h3 className="text-xl font-semibold mb-2 text-amber-400">Studio</h3>
-                <div className="text-4xl font-semibold mb-6">$399<span className="text-base font-normal text-slate-500">/mo</span></div>
+                <div className="text-4xl font-semibold mb-6">$599<span className="text-base font-normal text-slate-500">/mo</span></div>
                 <ul className="space-y-3.5 mb-7 flex-1 text-sm">
                   <li className="flex gap-3 text-slate-300"><span className="text-amber-400">✓</span> 600 Credits</li>
                   <li className="flex gap-3 text-slate-300"><span className="text-amber-400">✓</span> 4K Video</li>
@@ -745,11 +965,11 @@ const App: React.FC = () => {
             <h3 className="text-2xl font-black uppercase italic text-white mb-2">Insufficient Aura Time</h3>
             <p className="text-slate-400 text-sm mb-8">You have run out of compute credits for this high-fidelity task. Recharge to continue creating.</p>
             <div className="grid gap-3">
-              <button onClick={() => { setAuraCreditTime(prev => prev + 50); setShowUpgradeModal(false); }} className="w-full py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl flex items-center justify-between px-6 group">
+              <button onClick={() => handleRecharge(50)} className="w-full py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl flex items-center justify-between px-6 group">
                 <span className="font-bold text-white">50 Credit Time</span>
                 <span className="text-cyan-300 font-mono">$50</span>
               </button>
-              <button onClick={() => { setAuraCreditTime(prev => prev + 150); setShowUpgradeModal(false); }} className="w-full py-4 bg-cyan-500 hover:bg-cyan-400 rounded-xl flex items-center justify-between px-6 shadow-lg shadow-cyan-900/40">
+              <button onClick={() => handleRecharge(150)} className="w-full py-4 bg-cyan-500 hover:bg-cyan-400 rounded-xl flex items-center justify-between px-6 shadow-lg shadow-cyan-900/40">
                 <span className="font-bold text-white uppercase tracking-widest text-xs">Best Value: 150 Credit Time</span>
                 <span className="text-white font-mono">$99</span>
               </button>
@@ -768,6 +988,19 @@ const App: React.FC = () => {
             <div className="w-6 h-6 md:w-8 md:h-8 rounded-xl bg-gradient-to-br from-cyan-400 to-cyan-500 shadow-lg flex items-center justify-center text-[10px]">✦</div>
             <span className={`font-light text-sm md:text-lg tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}><span className="font-semibold">AURADOMO</span><span className="text-cyan-400">SKETCH</span></span>
           </div>
+          <button onClick={handleLogout} className="ml-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-cyan-400">
+            Sign Out
+          </button>
+
+          {/* ADMIN BUTTON (Only show for Master Admin) */}
+          {user?.email === 'auraassistantai@gmail.com' && (
+            <button
+              onClick={() => setShowAdmin(true)}
+              className="ml-4 px-3 py-1 rounded bg-red-500/10 border border-red-500/50 text-red-400 text-[10px] font-bold uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all"
+            >
+              Admin
+            </button>
+          )}
         </div>
 
         {/* ECONOMY DASHBOARD HEADER */}
@@ -781,22 +1014,24 @@ const App: React.FC = () => {
         </div>
 
         {/* MODEL MODE TOGGLE (Standard vs Pro) */}
-        {userTier !== 'designer' && (
-          <div className="flex items-center bg-black/20 border border-white/5 rounded-full p-1 backdrop-blur-md">
-            <button
-              onClick={() => setModelMode('standard')}
-              className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${modelMode === 'standard' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}
-            >
-              Standard
-            </button>
-            <button
-              onClick={() => setModelMode('pro')}
-              className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${modelMode === 'pro' ? 'bg-cyan-500 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
-            >
-              Pro
-            </button>
-          </div>
-        )}
+        {
+          userTier !== 'designer' && (
+            <div className="flex items-center bg-black/20 border border-white/5 rounded-full p-1 backdrop-blur-md">
+              <button
+                onClick={() => setModelMode('standard')}
+                className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${modelMode === 'standard' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}
+              >
+                Standard
+              </button>
+              <button
+                onClick={() => setModelMode('pro')}
+                className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${modelMode === 'pro' ? 'bg-cyan-500 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
+              >
+                Pro
+              </button>
+            </div>
+          )
+        }
 
         {/* VEO STUDIO TAB */}
         <button
@@ -829,7 +1064,7 @@ const App: React.FC = () => {
             </label>
           )}
         </div>
-      </nav>
+      </nav >
 
       <main className="flex-1 flex overflow-hidden relative">
         {isSidebarOpen && <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[85] lg:hidden" onClick={() => setIsSidebarOpen(false)} />}
@@ -1154,195 +1389,197 @@ const App: React.FC = () => {
         </section>
       </main>
 
-      {isVideoStudioOpen && (
-        <div className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-2 md:p-8 animate-in fade-in zoom-in duration-300">
-          <div className="w-full max-w-5xl h-full md:h-auto md:max-h-[90vh] bg-[#080808] border border-white/10 rounded-[2rem] md:rounded-[3rem] overflow-hidden flex flex-col md:flex-row shadow-[0_50px_100px_rgba(0,0,0,0.8)]">
-            <div className="flex-1 bg-black p-4 md:p-6 flex flex-col items-center justify-center relative min-h-[300px] md:min-h-[400px]">
-              <div className="absolute top-4 left-4 z-10 flex items-center gap-3">
-                <button onClick={() => setIsVideoStudioOpen(false)} className="p-2 bg-cyan-500/20 text-cyan-300 rounded-xl hover:bg-cyan-500/30 transition-all" title="Return Home">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
-                </button>
-                <span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] text-cyan-400">Video Studio</span>
-              </div>
-              <div className="w-full aspect-video bg-white/5 rounded-[1rem] md:rounded-[2rem] overflow-hidden border border-white/5 relative shadow-inner">
-                {videoLoading || isDubbing ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-4 text-center"><div className="w-10 h-10 md:w-16 md:h-16 border-[3px] md:border-[4px] border-cyan-500 border-t-transparent rounded-full animate-spin" /><p className="text-white font-black uppercase text-[10px] md:text-[12px] tracking-widest animate-pulse">{videoStatus || 'Synthesizing...'}</p></div>
-                ) : generatedVideoUrl ? (
-                  <div className="w-full h-full relative">
-                    <video src={generatedVideoUrl} id="videoPlayer" controls autoPlay loop className="w-full h-full object-contain" />
-                    {syncedAudioUrl && <audio src={syncedAudioUrl} autoPlay />}
-                  </div>
-                ) : (
-                  <div className="relative w-full h-full flex items-center justify-center group bg-[#050505] overflow-hidden">
-                    <div className="absolute inset-0 flex gap-1">
-                      {videoStartFrame && <img src={videoStartFrame} className={`h-full object-cover ${videoEndFrame ? 'w-1/2' : 'w-full'} opacity-40`} />}
-                      {videoEndFrame && <img src={videoEndFrame} className="w-1/2 h-full object-cover opacity-40" />}
+      {
+        isVideoStudioOpen && (
+          <div className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-2 md:p-8 animate-in fade-in zoom-in duration-300">
+            <div className="w-full max-w-5xl h-full md:h-auto md:max-h-[90vh] bg-[#080808] border border-white/10 rounded-[2rem] md:rounded-[3rem] overflow-hidden flex flex-col md:flex-row shadow-[0_50px_100px_rgba(0,0,0,0.8)]">
+              <div className="flex-1 bg-black p-4 md:p-6 flex flex-col items-center justify-center relative min-h-[300px] md:min-h-[400px]">
+                <div className="absolute top-4 left-4 z-10 flex items-center gap-3">
+                  <button onClick={() => setIsVideoStudioOpen(false)} className="p-2 bg-cyan-500/20 text-cyan-300 rounded-xl hover:bg-cyan-500/30 transition-all" title="Return Home">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+                  </button>
+                  <span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] text-cyan-400">Video Studio</span>
+                </div>
+                <div className="w-full aspect-video bg-white/5 rounded-[1rem] md:rounded-[2rem] overflow-hidden border border-white/5 relative shadow-inner">
+                  {videoLoading || isDubbing ? (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-4 text-center"><div className="w-10 h-10 md:w-16 md:h-16 border-[3px] md:border-[4px] border-cyan-500 border-t-transparent rounded-full animate-spin" /><p className="text-white font-black uppercase text-[10px] md:text-[12px] tracking-widest animate-pulse">{videoStatus || 'Synthesizing...'}</p></div>
+                  ) : generatedVideoUrl ? (
+                    <div className="w-full h-full relative">
+                      <video src={generatedVideoUrl} id="videoPlayer" controls autoPlay loop className="w-full h-full object-contain" />
+                      {syncedAudioUrl && <audio src={syncedAudioUrl} autoPlay />}
                     </div>
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.5em] text-white/40 text-center">Awaiting Synthesis</span></div>
+                  ) : (
+                    <div className="relative w-full h-full flex items-center justify-center group bg-[#050505] overflow-hidden">
+                      <div className="absolute inset-0 flex gap-1">
+                        {videoStartFrame && <img src={videoStartFrame} className={`h-full object-cover ${videoEndFrame ? 'w-1/2' : 'w-full'} opacity-40`} />}
+                        {videoEndFrame && <img src={videoEndFrame} className="w-1/2 h-full object-cover opacity-40" />}
+                      </div>
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.5em] text-white/40 text-center">Awaiting Synthesis</span></div>
+                    </div>
+                  )}
+                </div>
+                {generatedVideoUrl && !isDubbing && (
+                  <div className="flex flex-col items-center gap-4 mt-6 w-full max-w-sm">
+                    <div className="w-full space-y-2">
+                      <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/50 px-2">Voice Direction & Tone</p>
+                      <textarea value={voiceInstruction} onChange={(e) => setVoiceInstruction(e.target.value)} placeholder="Perfectly describe how you want them to sound (e.g. Gritty pirate, rapid-fire cartoon, emotional whisper)..." className="w-full h-16 bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] text-white outline-none focus:border-cyan-400/50 resize-none shadow-inner" />
+                    </div>
+                    <div className="flex gap-4 w-full">
+                      <button onClick={handleAnalyzeVideo} className="flex-1 py-1.5 md:py-2 bg-cyan-500 text-white rounded-full font-black uppercase text-[8px] md:text-[10px] tracking-[0.2em] shadow-xl hover:bg-cyan-600 transition-all">Scan for AI Voice</button>
+                      <button onClick={() => handleDownload(generatedVideoUrl, 'video')} className="flex-1 py-1.5 md:py-2 bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-full font-black uppercase text-[8px] md:text-[10px] tracking-[0.2em] hover:bg-cyan-500/30 transition-all">Save Video</button>
+                    </div>
                   </div>
                 )}
               </div>
-              {generatedVideoUrl && !isDubbing && (
-                <div className="flex flex-col items-center gap-4 mt-6 w-full max-w-sm">
-                  <div className="w-full space-y-2">
-                    <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/50 px-2">Voice Direction & Tone</p>
-                    <textarea value={voiceInstruction} onChange={(e) => setVoiceInstruction(e.target.value)} placeholder="Perfectly describe how you want them to sound (e.g. Gritty pirate, rapid-fire cartoon, emotional whisper)..." className="w-full h-16 bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] text-white outline-none focus:border-cyan-400/50 resize-none shadow-inner" />
-                  </div>
-                  <div className="flex gap-4 w-full">
-                    <button onClick={handleAnalyzeVideo} className="flex-1 py-1.5 md:py-2 bg-cyan-500 text-white rounded-full font-black uppercase text-[8px] md:text-[10px] tracking-[0.2em] shadow-xl hover:bg-cyan-600 transition-all">Scan for AI Voice</button>
-                    <button onClick={() => handleDownload(generatedVideoUrl, 'video')} className="flex-1 py-1.5 md:py-2 bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-full font-black uppercase text-[8px] md:text-[10px] tracking-[0.2em] hover:bg-cyan-500/30 transition-all">Save Video</button>
-                  </div>
-                </div>
-              )}
-            </div>
 
-            <div className="w-full md:w-[360px] lg:w-[400px] p-6 md:p-8 border-t md:border-t-0 md:border-l border-white/5 flex flex-col gap-4 md:gap-6 overflow-y-auto no-scrollbar">
-              <div className="flex items-center justify-between"><h2 className="text-lg md:text-xl font-black uppercase italic tracking-tighter">Veo<span className="text-cyan-500">Studio</span></h2><button onClick={() => setIsVideoStudioOpen(false)} className="text-slate-500 hover:text-white transition-colors"><svg className="w-5 h-5 md:w-6 md:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg></button></div>
+              <div className="w-full md:w-[360px] lg:w-[400px] p-6 md:p-8 border-t md:border-t-0 md:border-l border-white/5 flex flex-col gap-4 md:gap-6 overflow-y-auto no-scrollbar">
+                <div className="flex items-center justify-between"><h2 className="text-lg md:text-xl font-black uppercase italic tracking-tighter">Veo<span className="text-cyan-500">Studio</span></h2><button onClick={() => setIsVideoStudioOpen(false)} className="text-slate-500 hover:text-white transition-colors"><svg className="w-5 h-5 md:w-6 md:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg></button></div>
 
-              {!dubSegments.length ? (
-                <>
-                  <div className="flex p-1 bg-white/5 rounded-xl border border-white/5"><button onClick={() => setVideoMode('interpolation')} className={`flex-1 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${videoMode === 'interpolation' ? 'bg-cyan-500 text-white shadow-lg' : 'text-slate-500'}`}>Story Mode</button><button onClick={() => userTier === 'studio' ? setVideoMode('reference') : setApiError("Vision mode requires Studio plan.")} className={`flex-1 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${videoMode === 'reference' ? 'bg-cyan-500 text-white shadow-lg' : 'text-slate-500'} ${userTier !== 'studio' ? 'opacity-40' : ''}`}>Vision Mode {userTier !== 'studio' && '🔒'}</button></div>
+                {!dubSegments.length ? (
+                  <>
+                    <div className="flex p-1 bg-white/5 rounded-xl border border-white/5"><button onClick={() => setVideoMode('interpolation')} className={`flex-1 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${videoMode === 'interpolation' ? 'bg-cyan-500 text-white shadow-lg' : 'text-slate-500'}`}>Story Mode</button><button onClick={() => userTier === 'studio' ? setVideoMode('reference') : setApiError("Vision mode requires Studio plan.")} className={`flex-1 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${videoMode === 'reference' ? 'bg-cyan-500 text-white shadow-lg' : 'text-slate-500'} ${userTier !== 'studio' ? 'opacity-40' : ''}`}>Vision Mode {userTier !== 'studio' && '🔒'}</button></div>
 
-                  {videoMode === 'interpolation' && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <span className="text-[8px] font-black uppercase text-white/40 tracking-widest">Start Frame</span>
-                        <label className="block aspect-video rounded-xl border border-dashed border-white/20 hover:border-cyan-400/50 cursor-pointer overflow-hidden relative bg-white/5 transition-all shadow-inner">
-                          {videoStartFrame ? (
-                            <img src={videoStartFrame} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="absolute inset-0 flex items-center justify-center text-[10px] text-white/20 font-black">+ UPLOAD</div>
-                          )}
-                          <input type="file" accept="image/*" onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onload = (event) => setVideoStartFrame(event.target?.result as string);
-                              reader.readAsDataURL(file);
-                            }
-                          }} className="hidden" />
-                        </label>
-                      </div>
-                      <div className="space-y-2">
-                        <span className="text-[8px] font-black uppercase text-white/40 tracking-widest">End Frame</span>
-                        <label className="block aspect-video rounded-xl border border-dashed border-white/20 hover:border-cyan-400/50 cursor-pointer overflow-hidden relative bg-white/5 transition-all shadow-inner">
-                          {videoEndFrame ? (
-                            <img src={videoEndFrame} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="absolute inset-0 flex items-center justify-center text-[10px] text-white/20 font-black">+ ADD</div>
-                          )}
-                          <input type="file" accept="image/*" onChange={handleEndFrameUpload} className="hidden" />
-                        </label>
-                      </div>
-                    </div>
-                  )}
-
-                  <section className="space-y-2">
-                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Quality Output</h3>
-                    <div className="grid grid-cols-3 gap-2">
-                      <button onClick={() => setVideoResolution('720p')} className={`py-2 rounded-lg border text-[9px] font-black ${videoResolution === '720p' ? 'bg-cyan-500 border-cyan-400 text-white' : 'border-white/10 text-slate-500'}`}>720p</button>
-                      <button onClick={() => setVideoResolution('1080p')} className={`py-2 rounded-lg border text-[9px] font-black ${videoResolution === '1080p' ? 'bg-cyan-500 border-cyan-400 text-white' : 'border-white/10 text-slate-500'} ${userTier === 'designer' ? 'opacity-30' : ''}`}>{userTier === 'designer' ? '🔒 1080p' : '1080p'}</button>
-                      <button onClick={() => setVideoResolution('4K')} className={`py-2 rounded-lg border text-[9px] font-black ${videoResolution === '4K' ? 'bg-cyan-500 border-cyan-400 text-white' : 'border-white/10 text-slate-500'} ${userTier !== 'studio' ? 'opacity-30' : ''}`}>{userTier !== 'studio' ? '🔒 4K' : '4K'}</button>
-                    </div>
-                  </section>
-
-                  <section className="space-y-2">
-                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Aspect Ratio</h3>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button onClick={() => setVideoAspectRatio('16:9')} className={`py-2.5 rounded-lg border text-[9px] font-black flex items-center justify-center gap-2 ${videoAspectRatio === '16:9' ? 'bg-cyan-500 border-cyan-400 text-white' : 'border-white/10 text-slate-500 hover:border-white/20'}`}>
-                        <span className="w-6 h-4 border-2 border-current rounded-sm"></span>
-                        Landscape
-                      </button>
-                      <button onClick={() => setVideoAspectRatio('9:16')} className={`py-2.5 rounded-lg border text-[9px] font-black flex items-center justify-center gap-2 ${videoAspectRatio === '9:16' ? 'bg-cyan-500 border-cyan-400 text-white' : 'border-white/10 text-slate-500 hover:border-white/20'}`}>
-                        <span className="w-4 h-6 border-2 border-current rounded-sm"></span>
-                        Portrait
-                      </button>
-                    </div>
-                  </section>
-
-                  {videoMode === 'reference' && (
-                    <section className="space-y-2">
-                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Reference Images <span className="text-white/30">(up to 3)</span></h3>
-                      <div className="grid grid-cols-3 gap-2">
-                        {[0, 1, 2].map((index) => (
-                          <div key={index} className="relative aspect-square">
-                            {videoIngredients[index] ? (
-                              <div className="relative w-full h-full group">
-                                <img src={videoIngredients[index]} className="w-full h-full object-cover rounded-xl border border-white/10" />
-                                <button
-                                  onClick={() => setVideoIngredients(prev => prev.filter((_, i) => i !== index))}
-                                  className="absolute top-1 right-1 w-5 h-5 bg-red-500/80 hover:bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                >
-                                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                </button>
-                              </div>
+                    {videoMode === 'interpolation' && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <span className="text-[8px] font-black uppercase text-white/40 tracking-widest">Start Frame</span>
+                          <label className="block aspect-video rounded-xl border border-dashed border-white/20 hover:border-cyan-400/50 cursor-pointer overflow-hidden relative bg-white/5 transition-all shadow-inner">
+                            {videoStartFrame ? (
+                              <img src={videoStartFrame} className="w-full h-full object-cover" />
                             ) : (
-                              <label className="block w-full h-full rounded-xl border border-dashed border-white/20 hover:border-cyan-400/50 cursor-pointer bg-white/5 transition-all flex items-center justify-center">
-                                <span className="text-[10px] text-white/30 font-black">+ ADD</span>
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file && videoIngredients.length < 3) {
-                                      const reader = new FileReader();
-                                      reader.onload = (ev) => {
-                                        const result = ev.target?.result as string;
-                                        setVideoIngredients(prev => [...prev, result]);
-                                      };
-                                      reader.readAsDataURL(file);
-                                    }
-                                    e.target.value = '';
-                                  }}
-                                />
-                              </label>
+                              <div className="absolute inset-0 flex items-center justify-center text-[10px] text-white/20 font-black">+ UPLOAD</div>
                             )}
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-[8px] text-white/30">Add reference images to guide your video's style and content</p>
-                    </section>
-                  )}
-
-                  <section className="space-y-4"><h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Atmosphere Directives</h3><textarea value={videoPrompt} onChange={(e) => setVideoPrompt(e.target.value)} placeholder="Describe the cinematic action..." className="w-full h-24 md:h-20 bg-white/5 border border-white/10 rounded-xl p-4 text-[10px] font-medium text-white outline-none focus:border-cyan-500/50 transition-all resize-none shadow-inner" /></section>
-                  <button onClick={handleGenerateVideo} disabled={videoLoading} className={`w-full py-3 md:py-4 rounded-xl font-black uppercase text-[9px] md:text-[10px] tracking-[0.3em] transition-all shadow-xl ${videoLoading ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-cyan-500 text-white hover:bg-cyan-600 active:scale-95'}`}>{videoLoading ? 'Crafting...' : 'Synthesize Motion'}</button>
-                  <button onClick={() => setIsVideoStudioOpen(false)} className="w-full py-3 text-[9px] font-black uppercase tracking-[0.4em] text-slate-600 hover:text-white transition-all">Back to Home</button>
-                </>
-              ) : (
-                <div className="flex-1 flex flex-col gap-6">
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">AI Dubbing Console</h3>
-                  <div className="space-y-4">
-                    {dubSegments.map((seg, idx) => (
-                      <div key={seg.id} className="p-4 bg-white/5 border border-white/10 rounded-2xl flex flex-col gap-3 shadow-inner">
-                        <div className="flex justify-between items-center">
-                          <span className="text-[9px] font-black uppercase text-cyan-300">{seg.speakerLabel} ({seg.startTime}s - {seg.endTime}s)</span>
-                          <select value={seg.voice} onChange={(e) => {
-                            const newSegments = [...dubSegments];
-                            newSegments[idx].voice = e.target.value as VoiceName;
-                            setDubSegments(newSegments);
-                          }} className="bg-black text-[9px] border border-white/10 rounded px-1 text-white outline-none">
-                            {VOICE_OPTIONS.map(v => <option key={v} value={v}>{v}</option>)}
-                          </select>
+                            <input type="file" accept="image/*" onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = (event) => setVideoStartFrame(event.target?.result as string);
+                                reader.readAsDataURL(file);
+                              }
+                            }} className="hidden" />
+                          </label>
                         </div>
-                        <textarea value={seg.text} onChange={(e) => {
-                          const newSegments = [...dubSegments];
-                          newSegments[idx].text = e.target.value;
-                          setDubSegments(newSegments);
-                        }} className="w-full bg-transparent text-[11px] outline-none border-none text-white/80 h-16 resize-none" />
+                        <div className="space-y-2">
+                          <span className="text-[8px] font-black uppercase text-white/40 tracking-widest">End Frame</span>
+                          <label className="block aspect-video rounded-xl border border-dashed border-white/20 hover:border-cyan-400/50 cursor-pointer overflow-hidden relative bg-white/5 transition-all shadow-inner">
+                            {videoEndFrame ? (
+                              <img src={videoEndFrame} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center text-[10px] text-white/20 font-black">+ ADD</div>
+                            )}
+                            <input type="file" accept="image/*" onChange={handleEndFrameUpload} className="hidden" />
+                          </label>
+                        </div>
                       </div>
-                    ))}
+                    )}
+
+                    <section className="space-y-2">
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Quality Output</h3>
+                      <div className="grid grid-cols-3 gap-2">
+                        <button onClick={() => setVideoResolution('720p')} className={`py-2 rounded-lg border text-[9px] font-black ${videoResolution === '720p' ? 'bg-cyan-500 border-cyan-400 text-white' : 'border-white/10 text-slate-500'}`}>720p</button>
+                        <button onClick={() => setVideoResolution('1080p')} className={`py-2 rounded-lg border text-[9px] font-black ${videoResolution === '1080p' ? 'bg-cyan-500 border-cyan-400 text-white' : 'border-white/10 text-slate-500'} ${userTier === 'designer' ? 'opacity-30' : ''}`}>{userTier === 'designer' ? '🔒 1080p' : '1080p'}</button>
+                        <button onClick={() => setVideoResolution('4K')} className={`py-2 rounded-lg border text-[9px] font-black ${videoResolution === '4K' ? 'bg-cyan-500 border-cyan-400 text-white' : 'border-white/10 text-slate-500'} ${userTier !== 'studio' ? 'opacity-30' : ''}`}>{userTier !== 'studio' ? '🔒 4K' : '4K'}</button>
+                      </div>
+                    </section>
+
+                    <section className="space-y-2">
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Aspect Ratio</h3>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button onClick={() => setVideoAspectRatio('16:9')} className={`py-2.5 rounded-lg border text-[9px] font-black flex items-center justify-center gap-2 ${videoAspectRatio === '16:9' ? 'bg-cyan-500 border-cyan-400 text-white' : 'border-white/10 text-slate-500 hover:border-white/20'}`}>
+                          <span className="w-6 h-4 border-2 border-current rounded-sm"></span>
+                          Landscape
+                        </button>
+                        <button onClick={() => setVideoAspectRatio('9:16')} className={`py-2.5 rounded-lg border text-[9px] font-black flex items-center justify-center gap-2 ${videoAspectRatio === '9:16' ? 'bg-cyan-500 border-cyan-400 text-white' : 'border-white/10 text-slate-500 hover:border-white/20'}`}>
+                          <span className="w-4 h-6 border-2 border-current rounded-sm"></span>
+                          Portrait
+                        </button>
+                      </div>
+                    </section>
+
+                    {videoMode === 'reference' && (
+                      <section className="space-y-2">
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Reference Images <span className="text-white/30">(up to 3)</span></h3>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[0, 1, 2].map((index) => (
+                            <div key={index} className="relative aspect-square">
+                              {videoIngredients[index] ? (
+                                <div className="relative w-full h-full group">
+                                  <img src={videoIngredients[index]} className="w-full h-full object-cover rounded-xl border border-white/10" />
+                                  <button
+                                    onClick={() => setVideoIngredients(prev => prev.filter((_, i) => i !== index))}
+                                    className="absolute top-1 right-1 w-5 h-5 bg-red-500/80 hover:bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                  >
+                                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                  </button>
+                                </div>
+                              ) : (
+                                <label className="block w-full h-full rounded-xl border border-dashed border-white/20 hover:border-cyan-400/50 cursor-pointer bg-white/5 transition-all flex items-center justify-center">
+                                  <span className="text-[10px] text-white/30 font-black">+ ADD</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file && videoIngredients.length < 3) {
+                                        const reader = new FileReader();
+                                        reader.onload = (ev) => {
+                                          const result = ev.target?.result as string;
+                                          setVideoIngredients(prev => [...prev, result]);
+                                        };
+                                        reader.readAsDataURL(file);
+                                      }
+                                      e.target.value = '';
+                                    }}
+                                  />
+                                </label>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-[8px] text-white/30">Add reference images to guide your video's style and content</p>
+                      </section>
+                    )}
+
+                    <section className="space-y-4"><h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Atmosphere Directives</h3><textarea value={videoPrompt} onChange={(e) => setVideoPrompt(e.target.value)} placeholder="Describe the cinematic action..." className="w-full h-24 md:h-20 bg-white/5 border border-white/10 rounded-xl p-4 text-[10px] font-medium text-white outline-none focus:border-cyan-500/50 transition-all resize-none shadow-inner" /></section>
+                    <button onClick={handleGenerateVideo} disabled={videoLoading} className={`w-full py-3 md:py-4 rounded-xl font-black uppercase text-[9px] md:text-[10px] tracking-[0.3em] transition-all shadow-xl ${videoLoading ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-cyan-500 text-white hover:bg-cyan-600 active:scale-95'}`}>{videoLoading ? 'Crafting...' : 'Synthesize Motion'}</button>
+                    <button onClick={() => setIsVideoStudioOpen(false)} className="w-full py-3 text-[9px] font-black uppercase tracking-[0.4em] text-slate-600 hover:text-white transition-all">Back to Home</button>
+                  </>
+                ) : (
+                  <div className="flex-1 flex flex-col gap-6">
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">AI Dubbing Console</h3>
+                    <div className="space-y-4">
+                      {dubSegments.map((seg, idx) => (
+                        <div key={seg.id} className="p-4 bg-white/5 border border-white/10 rounded-2xl flex flex-col gap-3 shadow-inner">
+                          <div className="flex justify-between items-center">
+                            <span className="text-[9px] font-black uppercase text-cyan-300">{seg.speakerLabel} ({seg.startTime}s - {seg.endTime}s)</span>
+                            <select value={seg.voice} onChange={(e) => {
+                              const newSegments = [...dubSegments];
+                              newSegments[idx].voice = e.target.value as VoiceName;
+                              setDubSegments(newSegments);
+                            }} className="bg-black text-[9px] border border-white/10 rounded px-1 text-white outline-none">
+                              {VOICE_OPTIONS.map(v => <option key={v} value={v}>{v}</option>)}
+                            </select>
+                          </div>
+                          <textarea value={seg.text} onChange={(e) => {
+                            const newSegments = [...dubSegments];
+                            newSegments[idx].text = e.target.value;
+                            setDubSegments(newSegments);
+                          }} className="w-full bg-transparent text-[11px] outline-none border-none text-white/80 h-16 resize-none" />
+                        </div>
+                      ))}
+                    </div>
+                    <button onClick={handleForgeVoiceover} className="w-full py-4 bg-white text-black rounded-xl font-black uppercase text-[10px] tracking-[0.2em] shadow-2xl hover:bg-slate-100 transition-all">Forge Dubbing</button>
+                    {syncedAudioUrl && <button onClick={() => handleDownload(syncedAudioUrl, 'video')} className="w-full py-3 border border-cyan-500/30 text-cyan-300 rounded-xl font-black uppercase text-[9px] tracking-widest hover:bg-cyan-500/10 shadow-xl">Download Voice track (MP4)</button>}
+                    <button onClick={() => setDubSegments([])} className="text-center text-[9px] font-black uppercase tracking-widest text-slate-600 hover:text-white transition-all">Back to Motion Studio</button>
+                    <button onClick={() => setIsVideoStudioOpen(false)} className="text-center text-[9px] font-black uppercase tracking-widest text-cyan-500/50 hover:text-cyan-500 transition-all">Return Home</button>
                   </div>
-                  <button onClick={handleForgeVoiceover} className="w-full py-4 bg-white text-black rounded-xl font-black uppercase text-[10px] tracking-[0.2em] shadow-2xl hover:bg-slate-100 transition-all">Forge Dubbing</button>
-                  {syncedAudioUrl && <button onClick={() => handleDownload(syncedAudioUrl, 'video')} className="w-full py-3 border border-cyan-500/30 text-cyan-300 rounded-xl font-black uppercase text-[9px] tracking-widest hover:bg-cyan-500/10 shadow-xl">Download Voice track (MP4)</button>}
-                  <button onClick={() => setDubSegments([])} className="text-center text-[9px] font-black uppercase tracking-widest text-slate-600 hover:text-white transition-all">Back to Motion Studio</button>
-                  <button onClick={() => setIsVideoStudioOpen(false)} className="text-center text-[9px] font-black uppercase tracking-widest text-cyan-500/50 hover:text-cyan-500 transition-all">Return Home</button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       <style>{`
         ::-webkit-scrollbar { display: none !important; }
@@ -1353,7 +1590,9 @@ const App: React.FC = () => {
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         .animate-in { animation: fadeIn 0.3s ease-out forwards; }
       `}</style>
-    </div>
+
+      {showAdmin && <AdminDashboard onClose={() => setShowAdmin(false)} />}
+    </div >
   );
 };
 
