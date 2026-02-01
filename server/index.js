@@ -9,6 +9,8 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+
 
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -324,14 +326,15 @@ app.post('/api/create-checkout-session', async (req, res) => {
                     quantity: 1,
                 }],
                 mode: 'payment', // One-time payment
-                success_url: `http://localhost:3000/?success=true&session_id={CHECKOUT_SESSION_ID}&type=credit`,
-                cancel_url: `http://localhost:3000/?canceled=true`,
+                success_url: `${FRONTEND_URL}/?success=true&session_id={CHECKOUT_SESSION_ID}&type=credit`,
+                cancel_url: `${FRONTEND_URL}/?canceled=true`,
                 customer_email: email,
                 metadata: {
                     type: 'credit',
                     credits: credits
                 }
             });
+
             return res.json({ id: session.id, url: session.url });
         }
 
@@ -379,8 +382,8 @@ app.post('/api/create-checkout-session', async (req, res) => {
                 quantity: 1,
             }],
             mode: 'subscription',
-            success_url: `http://localhost:3000/?success=true&session_id={CHECKOUT_SESSION_ID}&tier=${tier}&type=subscription`,
-            cancel_url: `http://localhost:3000/?canceled=true`,
+            success_url: `${FRONTEND_URL}/?success=true&session_id={CHECKOUT_SESSION_ID}&tier=${tier}&type=subscription`,
+            cancel_url: `${FRONTEND_URL}/?canceled=true`,
             customer_email: email,
             metadata: {
                 type: 'subscription',
@@ -388,6 +391,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
                 credits: credits
             }
         });
+
 
         res.json({ id: session.id, url: session.url });
 
