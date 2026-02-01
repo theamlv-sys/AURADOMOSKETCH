@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import { User } from '@supabase/supabase-js';
+import { API_BASE_URL } from '../config';
 
 // Configuration
 const SYNC_INTERVAL_MS = 1000;
@@ -74,7 +75,7 @@ export const useCreditSystem = (user: User | null, userTier: string | null) => {
             // Round to integer for database compatibility (credits column is INTEGER type)
             const roundedCredits = Math.round(current);
 
-            await fetch('http://localhost:3001/api/sync-credits', {
+            await fetch(`${API_BASE_URL}/api/sync-credits`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

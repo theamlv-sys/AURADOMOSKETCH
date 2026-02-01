@@ -9,6 +9,7 @@ import { User } from '@supabase/supabase-js';
 import { loadStripe } from '@stripe/stripe-js';
 import AdminDashboard from './components/AdminDashboard'; // Import Admin Component
 import { useCreditSystem } from './hooks/useCreditSystem';
+import { API_BASE_URL } from './config';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
@@ -252,7 +253,7 @@ const App: React.FC = () => {
     setLoading(true);
     try {
       console.log('Initiating checkout for:', tier);
-      const res = await fetch('http://localhost:3001/api/create-checkout-session', {
+      const res = await fetch(`${API_BASE_URL}/api/create-checkout-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tier, email: user.email })
@@ -298,7 +299,7 @@ const App: React.FC = () => {
 
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3001/api/create-checkout-session', {
+      const res = await fetch(`${API_BASE_URL}/api/create-checkout-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -331,7 +332,7 @@ const App: React.FC = () => {
       if (success && sessionId && user) {
         console.log('Payment Successful! Verifying...');
         try {
-          const res = await fetch('http://localhost:3001/api/verify-payment', {
+          const res = await fetch(`${API_BASE_URL}/api/verify-payment`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ sessionId })
@@ -371,7 +372,7 @@ const App: React.FC = () => {
         if (!session) return;
 
         try {
-          const res = await fetch('http://localhost:3001/api/admin/claim', {
+          const res = await fetch(`${API_BASE_URL}/api/admin/claim`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${session.access_token}` }
           });
@@ -519,7 +520,7 @@ const App: React.FC = () => {
       }
 
       // Get file from server with proper headers
-      const downloadResponse = await fetch('http://localhost:3001/api/download', {
+      const downloadResponse = await fetch(`${API_BASE_URL}/api/download`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ base64Data, filename, mimeType })

@@ -1,7 +1,9 @@
 import { GenerationConfig, VideoGenerationConfig, SpeechSegment } from "../types";
 
 const ACCESS_CODE_USER_ID = "aura-user-session-v1";
-const API_BASE = "http://localhost:3001/api";
+import { API_BASE_URL } from '../config';
+
+const API_BASE = `${API_BASE_URL}/api`;
 
 // Helper for Fetch handling
 const postToProxy = async (endpoint: string, body: any) => {

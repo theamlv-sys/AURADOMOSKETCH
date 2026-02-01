@@ -1,6 +1,7 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { API_BASE_URL } from '../config';
 
 interface UserData {
     id: string;
@@ -45,7 +46,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) throw new Error("No session");
 
-            const res = await fetch('http://localhost:3001/api/admin/users', {
+            const res = await fetch(`${API_BASE_URL}/api/admin/users`, {
                 headers: {
                     'Authorization': `Bearer ${session.access_token}`
                 }
