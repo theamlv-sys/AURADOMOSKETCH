@@ -1,5 +1,9 @@
 
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useImperativeHandle, forwardRef } from 'react';
+
+export interface DrawingCanvasRef {
+  clear: () => void;
+}
 
 interface DrawingCanvasProps {
   color: string;
@@ -14,7 +18,7 @@ interface DrawingCanvasProps {
   backgroundImage?: string | null;
 }
 
-const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
+const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   color,
   brushSize,
   tool,
@@ -25,7 +29,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   offset,
   onTransformChange,
   backgroundImage
-}) => {
+}, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const isDrawing = useRef(false);
@@ -44,6 +48,40 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     }
     return ctx;
   };
+
+  const captureCanvas = () => {
+    if (canvasRef.current) {
+      const sExport = document.createElement('canvas');
+      sExport.width = canvasRef.current.width;
+      sExport.height = canvasRef.current.height;
+      const sCtx = sExport.getContext('2d');
+      if (sCtx) {
+        if (backgroundImage) {
+          const img = new Image();
+          img.src = backgroundImage;
+          sCtx.drawImage(img, 0, 0, sExport.width, sExport.height);
+        } else {
+          sCtx.fillStyle = 'white';
+          sCtx.fillRect(0, 0, sExport.width, sExport.height);
+        }
+        sCtx.drawImage(canvasRef.current, 0, 0);
+      }
+      return sExport.toDataURL('image/png');
+    }
+    return '';
+  };
+
+  const clearAll = () => {
+    const ctx = getCtx();
+    if (ctx && canvasRef.current) {
+      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      onStrokeEnd(captureCanvas());
+    }
+  };
+
+  useImperativeHandle(ref, () => ({
+    clear: clearAll
+  }));
 
   const setupCanvases = useCallback(() => {
     const canvas = canvasRef.current;
@@ -89,33 +127,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     const x = (clientX - rect.left) * (canvas.width / rect.width);
     const y = (clientY - rect.top) * (canvas.height / rect.height);
     return { x, y };
-  };
-
-  const captureCanvas = () => {
-    if (canvasRef.current) {
-      const sExport = document.createElement('canvas');
-      sExport.width = canvasRef.current.width;
-      sExport.height = canvasRef.current.height;
-      const sCtx = sExport.getContext('2d');
-      if (sCtx) {
-        // If there's a background image, draw it first
-        if (backgroundImage) {
-          // Create temp image element to load and draw the background
-          const img = new Image();
-          img.src = backgroundImage;
-          // Draw background image to fill the canvas
-          sCtx.drawImage(img, 0, 0, sExport.width, sExport.height);
-        } else {
-          // No background image, fill with white
-          sCtx.fillStyle = 'white';
-          sCtx.fillRect(0, 0, sExport.width, sExport.height);
-        }
-        // Then draw the user's strokes on top
-        sCtx.drawImage(canvasRef.current, 0, 0);
-      }
-      return sExport.toDataURL('image/png');
-    }
-    return '';
   };
 
   const handleStart = (e: any) => {
@@ -171,7 +182,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       ctx.lineTo(coords.x, coords.y);
       ctx.stroke();
 
-      // Real-Time Throttled Update (approx every 800ms)
       const now = Date.now();
       if (now - lastSnapshotTime.current > 800 && onRealTimeUpdate) {
         lastSnapshotTime.current = now;
@@ -184,8 +194,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     if (isPanning.current) { isPanning.current = false; return; }
     if (!isDrawing.current) return;
     isDrawing.current = false;
-
-    // Always fire full update on end
     onStrokeEnd(captureCanvas());
   };
 
@@ -203,14 +211,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       window.removeEventListener('touchend', onWinEnd);
     };
   }, [tool, color, brushSize, scale, offset, backgroundImage, onStrokeEnd, onRealTimeUpdate]);
-
-  const clearAll = () => {
-    const ctx = getCtx();
-    if (ctx && canvasRef.current) {
-      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-      onStrokeEnd(captureCanvas());
-    }
-  };
 
   return (
     <div className="w-full h-full relative group overflow-hidden select-none touch-none bg-white">
@@ -250,6 +250,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export default DrawingCanvas;

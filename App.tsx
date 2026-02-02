@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { saveAs } from 'file-saver';
-import DrawingCanvas from './components/DrawingCanvas';
+import DrawingCanvas, { DrawingCanvasRef } from './components/DrawingCanvas';
 import { generateArtFromSketch, generateVideoFromImage, analyzeVideoForSpeech, generateMixedVoiceover } from './services/geminiService';
 import { GenerationConfig, StylePreset, HistoryItem, VideoHistoryItem, VideoMode, SpeechSegment, VoiceName, VideoGenerationConfig, UserTier, VideoResolution, ModelMode } from './types';
 import { supabase } from './supabaseClient';
@@ -92,6 +92,7 @@ const App: React.FC = () => {
   // Economy & Tier State
   const [userTier, setUserTier] = useState<UserTier | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const drawingCanvasRef = useRef<DrawingCanvasRef>(null);
 
   // REBUILT CREDIT SYSTEM HOOK
   const { credits: auraCreditTime, startBurn, stopBurn, deduct, forceSave, isLoaded } = useCreditSystem(user, userTier as string);
@@ -980,92 +981,95 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <nav className={`h-16 flex items-center justify-between px-4 md:px-6 border-b transition-all duration-500 z-[100] flex-shrink-0 ${theme === 'dark' ? 'border-white/5 bg-black/40 backdrop-blur-xl' : 'border-slate-100 bg-white/80 backdrop-blur-xl shadow-sm'}`}>
-        <div className="flex items-center gap-3 md:gap-4">
-          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className={`p-2 rounded-xl transition-all ${theme === 'dark' ? 'hover:bg-white/5 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}>
+      {/* FUTURISTIC HEADER - Mobile Responsive */}
+      <nav className={`h-14 md:h-16 flex items-center justify-between px-3 md:px-6 border-b transition-all duration-500 z-[100] flex-shrink-0 relative ${theme === 'dark' ? 'border-b border-white/5 bg-[#050505]/80 backdrop-blur-xl supports-[backdrop-filter]:bg-[#050505]/60' : 'border-b border-slate-200/50 bg-white/80 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60 shadow-sm'}`}>
+
+        {/* LEFT: Logo + Menu */}
+        <div className="flex items-center gap-2 md:gap-4">
+          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className={`p-2 rounded-xl transition-all ${theme === 'dark' ? 'hover:bg-cyan-500/10 text-cyan-400' : 'hover:bg-slate-100 text-slate-500'}`}>
             <svg className={`w-5 h-5 transition-transform duration-500 ${isSidebarOpen ? '' : 'rotate-180'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
           </button>
-          <div className="flex items-center gap-2 md:gap-3">
-            <div className="w-6 h-6 md:w-8 md:h-8 rounded-xl bg-gradient-to-br from-cyan-400 to-cyan-500 shadow-lg flex items-center justify-center text-[10px]">✦</div>
-            <span className={`font-light text-sm md:text-lg tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}><span className="font-semibold">AURADOMO</span><span className="text-cyan-400">SKETCH</span></span>
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 md:w-8 md:h-8 rounded-xl bg-gradient-to-br from-cyan-400 via-cyan-500 to-blue-600 shadow-lg shadow-cyan-500/30 flex items-center justify-center text-[10px] animate-pulse" style={{ animationDuration: '3s' }}>✦</div>
+            <span className={`hidden sm:block font-light text-sm md:text-lg tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+              <span className="font-bold bg-gradient-to-r from-white to-cyan-200 bg-clip-text text-transparent">AURADOMO</span>
+              <span className="text-cyan-400 font-light">SKETCH</span>
+            </span>
           </div>
-          <button onClick={handleLogout} className="ml-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-cyan-400">
-            Sign Out
+        </div>
+
+        {/* CENTER: Economy Dashboard - Compact on Mobile */}
+        <div className={`flex items-center gap-2 md:gap-4 rounded-full px-3 md:px-5 py-1.5 md:py-2 backdrop-blur-xl border transition-all ${theme === 'dark' ? 'bg-black/40 border-cyan-500/20 shadow-[0_0_20px_rgba(34,211,238,0.1)]' : 'bg-white/70 border-slate-200 shadow-sm'}`}>
+          <div className={`w-2 h-2 rounded-full ${auraCreditTime > 20 ? 'bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.8)] animate-pulse' : 'bg-red-500 animate-pulse'}`} style={{ animationDuration: '2s' }} />
+          <span className={`text-[10px] md:text-[11px] font-semibold tracking-wide ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+            <span className={`font-bold ${theme === 'dark' ? 'text-cyan-300' : 'text-slate-900'}`}>{Math.floor(auraCreditTime)}</span>
+            <span className="hidden sm:inline"> TIME</span>
+          </span>
+          <div className={`h-4 w-px ${theme === 'dark' ? 'bg-cyan-500/20' : 'bg-slate-300'}`} />
+          <span className={`text-[9px] md:text-[10px] font-black uppercase tracking-wider ${theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'}`}>{userTier}</span>
+        </div>
+
+        {/* RIGHT: Actions - Responsive Icons */}
+        <div className="flex items-center gap-1.5 md:gap-3">
+
+          {/* Model Toggle - Compact on Mobile */}
+          {userTier !== 'designer' && (
+            <div className="flex items-center bg-black/20 border border-white/5 rounded-full p-0.5 backdrop-blur-md scale-90 md:scale-100 origin-right">
+              <button onClick={() => setModelMode('standard')} className={`px-2 md:px-3 py-1 rounded-full text-[7px] md:text-[8px] font-black uppercase tracking-widest transition-all ${modelMode === 'standard' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}>Std</button>
+              <button onClick={() => setModelMode('pro')} className={`px-2 md:px-3 py-1 rounded-full text-[7px] md:text-[8px] font-black uppercase tracking-widest transition-all ${modelMode === 'pro' ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/30' : 'text-slate-500 hover:text-white'}`}>Pro</button>
+            </div>
+          )}
+
+          {/* Veo Studio - Icon on Mobile, Full on Desktop */}
+          <button
+            onClick={() => { setVideoStartFrame(styleResult || null); setIsVideoStudioOpen(true); }}
+            className={`p-2 md:px-4 md:py-2 rounded-xl transition-all group ${theme === 'dark' ? 'bg-cyan-500/10 border border-cyan-400/20 hover:bg-cyan-500/20 hover:border-cyan-400/40 hover:shadow-[0_0_20px_rgba(34,211,238,0.2)]' : 'bg-cyan-50 border border-cyan-200 hover:bg-cyan-100'}`}
+            title="Veo Studio"
+          >
+            <svg className={`w-4 h-4 ${theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            <span className={`hidden md:inline ml-2 text-[10px] font-semibold uppercase tracking-wide ${theme === 'dark' ? 'text-cyan-300' : 'text-cyan-700'}`}>Veo</span>
+          </button>
+
+          {/* Recharge - Icon on Mobile */}
+          <button onClick={() => setShowUpgradeModal(true)} className={`p-2 md:px-4 md:py-2 rounded-xl text-[10px] font-semibold uppercase tracking-wide transition-all ${theme === 'dark' ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 hover:scale-105' : 'bg-cyan-500 text-white shadow-md hover:bg-cyan-600'}`} title="Recharge Credits">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+            <span className="hidden md:inline ml-2">Recharge</span>
+          </button>
+
+          {/* Theme Toggle */}
+          <button onClick={toggleTheme} className={`w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-xl transition-all ${theme === 'dark' ? 'bg-white/5 text-yellow-400 hover:bg-white/10 border border-white/10' : 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200 shadow-sm'}`}>
+            {theme === 'dark' ? <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M16.243 17.657l.707.707M7.757 7.757l.707-.707M12 7a5 5 0 110 10 5 5 0 010-10z" /></svg> : <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>}
+          </button>
+
+          {/* Upload/Clear */}
+          {referenceImage ? (
+            <button onClick={handleClearPhoto} className="p-2 md:px-4 md:py-2 bg-red-500 text-white rounded-xl text-[10px] font-semibold uppercase tracking-wide hover:bg-red-600 transition-all shadow-lg shadow-red-500/25" title="Clear Image">
+              <svg className="w-4 h-4 md:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              <span className="hidden md:inline">Clear</span>
+            </button>
+          ) : (
+            <label className={`cursor-pointer p-2 md:px-4 md:py-2 rounded-xl text-[10px] font-semibold uppercase tracking-wide transition-all flex items-center ${theme === 'dark' ? 'bg-white/10 text-white border border-white/20 hover:bg-white/15' : 'bg-white text-slate-700 border border-slate-200 shadow-sm hover:bg-slate-50'}`} title="Upload Image">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+              <span className="hidden md:inline ml-2">Upload</span>
+              <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+            </label>
+          )}
+
+          {/* Sign Out - Icon Only on Mobile */}
+          <button onClick={handleLogout} className={`p-2 rounded-xl transition-all ${theme === 'dark' ? 'text-slate-500 hover:text-red-400 hover:bg-red-500/10' : 'text-slate-400 hover:text-red-500'}`} title="Sign Out">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
           </button>
 
           {/* ADMIN BUTTON (Only show for Master Admin) */}
           {user?.email === 'auraassistantai@gmail.com' && (
-            <button
-              onClick={() => setShowAdmin(true)}
-              className="ml-4 px-3 py-1 rounded bg-red-500/10 border border-red-500/50 text-red-400 text-[10px] font-bold uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all"
-            >
-              Admin
+            <button onClick={() => setShowAdmin(true)} className="p-2 rounded-xl bg-red-500/10 border border-red-500/50 text-red-400 hover:bg-red-500 hover:text-white transition-all" title="Admin">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
             </button>
           )}
         </div>
-
-        {/* ECONOMY DASHBOARD HEADER */}
-        <div className={`flex items-center gap-4 rounded-full px-5 py-2 backdrop-blur-xl border transition-all ${theme === 'dark' ? 'bg-black/30 border-white/10' : 'bg-white/70 border-slate-200 shadow-sm'}`}>
-          <div className={`w-2 h-2 rounded-full ${auraCreditTime > 20 ? 'bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.5)]' : 'bg-red-500 animate-pulse'}`} />
-          <span className={`text-[11px] font-semibold tracking-wide ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-            <span className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{Math.floor(auraCreditTime)}</span> TIME
-          </span>
-          <div className={`h-4 w-px ${theme === 'dark' ? 'bg-white/10' : 'bg-slate-300'}`} />
-          <span className={`text-[10px] font-bold uppercase tracking-wider ${theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'}`}>{userTier}</span>
-        </div>
-
-        {/* MODEL MODE TOGGLE (Standard vs Pro) */}
-        {
-          userTier !== 'designer' && (
-            <div className="flex items-center bg-black/20 border border-white/5 rounded-full p-1 backdrop-blur-md">
-              <button
-                onClick={() => setModelMode('standard')}
-                className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${modelMode === 'standard' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}
-              >
-                Standard
-              </button>
-              <button
-                onClick={() => setModelMode('pro')}
-                className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${modelMode === 'pro' ? 'bg-cyan-500 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
-              >
-                Pro
-              </button>
-            </div>
-          )
-        }
-
-        {/* VEO STUDIO TAB */}
-        <button
-          onClick={() => {
-            setVideoStartFrame(styleResult || null);
-            setIsVideoStudioOpen(true);
-          }}
-          className={`hidden md:flex items-center gap-2.5 px-5 py-2.5 rounded-xl transition-all group ${theme === 'dark' ? 'bg-cyan-500/10 border border-cyan-400/20 hover:bg-cyan-500/20 hover:border-cyan-400/40' : 'bg-cyan-50 border border-cyan-200 hover:bg-cyan-100'}`}
-        >
-          <svg className={`w-4 h-4 ${theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-          </svg>
-          <span className={`text-[10px] font-semibold uppercase tracking-wide ${theme === 'dark' ? 'text-cyan-300' : 'text-cyan-700'}`}>Veo Studio</span>
-        </button>
-
-        <div className="flex items-center gap-3">
-          <button onClick={() => setShowUpgradeModal(true)} className={`hidden md:flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-semibold uppercase tracking-wide transition-all ${theme === 'dark' ? 'bg-gradient-to-r from-cyan-500 to-cyan-400 text-white shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40' : 'bg-cyan-500 text-white shadow-md hover:bg-cyan-600'}`}>
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-            Recharge
-          </button>
-          <button onClick={toggleTheme} className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${theme === 'dark' ? 'bg-white/5 text-yellow-400 hover:bg-white/10 border border-white/10' : 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200 shadow-sm'}`}>
-            {theme === 'dark' ? <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M16.243 17.657l.707.707M7.757 7.757l.707-.707M12 7a5 5 0 110 10 5 5 0 010-10z" /></svg> : <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>}
-          </button>
-          {referenceImage ? (
-            <button onClick={handleClearPhoto} className="px-5 py-2.5 bg-red-500 text-white rounded-xl text-[10px] font-semibold uppercase tracking-wide hover:bg-red-600 transition-all shadow-lg shadow-red-500/25">Clear</button>
-          ) : (
-            <label className={`cursor-pointer px-5 py-2.5 rounded-xl text-[10px] font-semibold uppercase tracking-wide transition-all ${theme === 'dark' ? 'bg-white/10 text-white border border-white/20 hover:bg-white/15' : 'bg-white text-slate-700 border border-slate-200 shadow-sm hover:bg-slate-50'}`}>
-              Upload
-              <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
-            </label>
-          )}
-        </div>
-      </nav >
+      </nav>
 
       <main className="flex-1 flex overflow-hidden relative">
         {isSidebarOpen && <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[85] lg:hidden" onClick={() => setIsSidebarOpen(false)} />}
@@ -1167,6 +1171,7 @@ const App: React.FC = () => {
                 </div>
                 <div className={`w-full flex-1 overflow-hidden transition-all duration-500 ${isExpanded ? '' : 'rounded-[1.5rem] md:rounded-[2.5rem] border'} ${theme === 'dark' ? 'border-white/5 bg-black' : 'border-slate-100 bg-white shadow-xl'}`}>
                   <DrawingCanvas
+                    ref={drawingCanvasRef}
                     key={canvasKey}
                     color={isExpanded ? computeColor(color, opacity) : color}
                     brushSize={brushSize}
@@ -1183,108 +1188,139 @@ const App: React.FC = () => {
 
                 {isExpanded && (
                   <>
-                    {/* TOOL SUITE - POSITIONED BOTTOM-CENTER WHEN OPEN, BOTTOM-RIGHT WHEN MINIMIZED */}
-                    <div
-                      className={`absolute bg-[#0f172a]/95 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-[0_40px_100px_rgba(0,0,0,0.8)] z-[140] animate-in slide-in-from-bottom-10 fade-in duration-300 overflow-hidden flex flex-col pointer-events-auto transition-all duration-300`}
-                      style={isSuiteMinimized ? {
-                        right: '40px',
-                        bottom: '40px',
-                        width: '160px'
-                      } : {
-                        left: '50%',
-                        bottom: '40px',
-                        width: '90%',
-                        maxWidth: '650px',
-                        transform: 'translateX(-50%)'
-                      }}
-                    >
-                      {/* HEADER / TOGGLE */}
-                      <div className="h-8 w-full bg-white/5 flex items-center justify-center border-b border-white/5 relative">
-                        <div className="w-12 h-1 rounded-full bg-white/20" />
-                        <button
-                          onClick={() => setIsSuiteMinimized(!isSuiteMinimized)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:text-white text-white/50 transition-colors"
-                        >
-                          {isSuiteMinimized ? (
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
-                          ) : (
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M20 12H4" /></svg>
-                          )}
-                        </button>
-                      </div>
+                    {/* TOOL SUITE - STANDARD STUDIO MODAL (FINAL) */}
+                    {isSuiteMinimized ? (
+                      // MINIMIZED: Floating Plus Button
+                      <button
+                        onClick={() => setIsSuiteMinimized(false)}
+                        className="fixed bottom-8 right-6 w-14 h-14 bg-cyan-500 hover:bg-cyan-400 rounded-full shadow-[0_4px_20px_rgba(6,182,212,0.5)] z-[9999] flex items-center justify-center text-white transition-transform hover:scale-110 active:scale-95"
+                      >
+                        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
+                      </button>
+                    ) : (
+                      // EXPANDED: Full Screen Overlay Modal
+                      <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+                        {/* Backdrop Click to Close */}
+                        <div className="absolute inset-0" onClick={() => setIsSuiteMinimized(true)} />
 
-                      {!isSuiteMinimized ? (
-                        <div className="p-5 flex flex-col gap-5">
-                          <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-1">
-                            {EXTENDED_COLORS.map(c => (
-                              <button key={c} onClick={() => { setColor(c); setTool('brush'); }} className={`w-9 h-9 rounded-full border-2 flex-shrink-0 transition-all ${color === c && tool === 'brush' ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-80 hover:scale-105'}`} style={{ backgroundColor: c }} />
-                            ))}
+                        {/* The Studio Panel */}
+                        <div className="relative bg-[#0f172a] border border-white/10 w-full max-w-sm p-6 rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col gap-6 max-h-[90vh] overflow-y-auto no-scrollbar">
+
+                          {/* Header */}
+                          <div className="flex justify-between items-center shrink-0">
+                            <h2 className="text-white font-bold text-lg tracking-wide flex items-center gap-2">
+                              <span className="w-2 h-6 bg-cyan-500 rounded-full" />
+                              Studio Tools
+                            </h2>
+                            <button onClick={() => setIsSuiteMinimized(true)} className="p-2 bg-white/5 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors">
+                              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
                           </div>
 
-                          <div className="h-px bg-white/10 w-full" />
-
-                          <div className="flex items-center justify-between gap-6">
-                            <div className="flex items-center gap-1">
-                              <button onClick={() => setBrushPreset('pencil')} className={`p-3 rounded-xl transition-all ${brushSize < 5 && tool === 'brush' ? 'bg-white/10 text-cyan-300' : 'text-slate-400 hover:text-white hover:bg-white/5'}`} title="Pencil">
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                              </button>
-                              <button onClick={() => setBrushPreset('pen')} className={`p-3 rounded-xl transition-all ${brushSize >= 5 && brushSize < 12 && tool === 'brush' ? 'bg-white/10 text-cyan-300' : 'text-slate-400 hover:text-white hover:bg-white/5'}`} title="Pen">
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                              </button>
-                              <button onClick={() => setBrushPreset('marker')} className={`p-3 rounded-xl transition-all ${brushSize >= 12 && brushSize < 24 && tool === 'brush' ? 'bg-white/10 text-cyan-300' : 'text-slate-400 hover:text-white hover:bg-white/5'}`} title="Marker">
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                              </button>
-                              <button onClick={() => setBrushPreset('paint')} className={`p-3 rounded-xl transition-all ${brushSize >= 24 && tool === 'brush' ? 'bg-white/10 text-cyan-300' : 'text-slate-400 hover:text-white hover:bg-white/5'}`} title="Paint Brush">
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>
-                              </button>
+                          {/* 1. Color Wheel Option */}
+                          <div className="space-y-3 shrink-0">
+                            <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-widest">
+                              <span>Colors</span>
+                              <span className="text-cyan-500">Selected</span>
                             </div>
+                            <div className="flex items-center gap-2 bg-black/30 p-2 rounded-2xl border border-white/5">
+                              {/* Left Arrow (Always Visible) */}
+                              <button onClick={() => document.getElementById('modal-scroll')?.scrollBy({ left: -150, behavior: 'smooth' })} className="p-2 text-slate-400 hover:text-white bg-white/5 rounded-lg"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
 
-                            <div className="flex-1 flex flex-col gap-3 px-6 border-l border-r border-white/10">
-                              <div className="flex items-center gap-4">
-                                <span className="text-[10px] font-black uppercase text-slate-500 w-12">Size</span>
-                                <input type="range" min="1" max="150" value={brushSize} onChange={(e) => setBrushSize(parseInt(e.target.value))} className="flex-1 accent-cyan-400 h-1 bg-white/10 rounded-full appearance-none" />
+                              <div id="modal-scroll" className="flex-1 flex gap-3 overflow-x-auto no-scrollbar scroll-smooth p-1 snap-x">
+                                {EXTENDED_COLORS.map(c => (
+                                  <button
+                                    key={c}
+                                    onClick={() => { setColor(c); setTool('brush'); }}
+                                    className={`w-10 h-10 rounded-full flex-shrink-0 transition-transform snap-center ${color === c && tool === 'brush' ? 'scale-110 ring-2 ring-white shadow-lg' : 'scale-100 opacity-70 hover:opacity-100'}`}
+                                    style={{ backgroundColor: c }}
+                                  />
+                                ))}
                               </div>
-                              <div className="flex items-center gap-4">
-                                <span className="text-[10px] font-black uppercase text-slate-500 w-12">Flow</span>
-                                <input type="range" min="0.1" max="1" step="0.1" value={opacity} onChange={(e) => setOpacity(parseFloat(e.target.value))} className="flex-1 accent-cyan-400 h-1 bg-white/10 rounded-full appearance-none" />
-                              </div>
+
+                              {/* Right Arrow (Always Visible) */}
+                              <button onClick={() => document.getElementById('modal-scroll')?.scrollBy({ left: 150, behavior: 'smooth' })} className="p-2 text-slate-400 hover:text-white bg-white/5 rounded-lg"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg></button>
                             </div>
+                          </div>
 
-                            <div className="flex items-center gap-2">
-                              <button onClick={() => setTool('eraser')} className={`p-4 rounded-2xl transition-all ${tool === 'eraser' ? 'bg-cyan-500 text-white shadow-xl' : 'hover:bg-white/5 text-slate-400'}`} title="Eraser">
+                          {/* 2. Tools & Actions */}
+                          <div className="space-y-6">
+                            {/* Tools Grid with Labels */}
+                            <div className="grid grid-cols-4 gap-3">
+                              {/* Pencil */}
+                              <button onClick={() => setBrushPreset('pencil')} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${tool === 'brush' && brushSize < 5 ? 'bg-cyan-500 text-white' : 'bg-white/5 text-slate-500'}`}>
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                <span className="text-[9px] font-bold uppercase">Pencil</span>
+                              </button>
+
+                              {/* Pen */}
+                              <button onClick={() => setBrushPreset('pen')} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${tool === 'brush' && brushSize >= 5 && brushSize < 12 ? 'bg-cyan-500 text-white' : 'bg-white/5 text-slate-500'}`}>
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                <span className="text-[9px] font-bold uppercase">Pen</span>
+                              </button>
+
+                              {/* Marker */}
+                              <button onClick={() => setBrushPreset('marker')} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${tool === 'brush' && brushSize >= 12 ? 'bg-cyan-500 text-white' : 'bg-white/5 text-slate-500'}`}>
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                                <span className="text-[9px] font-bold uppercase">Marker</span>
+                              </button>
+
+                              {/* Eraser Tool */}
+                              <button onClick={() => setTool('eraser')} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${tool === 'eraser' ? 'bg-cyan-500 text-white' : 'bg-white/5 text-slate-500'}`}>
                                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2.001 16.138 21H7.862a2 2 0 01-1.995-1.858L5 7" /></svg>
+                                <span className="text-[9px] font-bold uppercase">Eraser</span>
                               </button>
                             </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="px-5 py-4 flex items-center justify-between gap-5">
-                          <div className="flex items-center gap-4">
-                            <div className="w-8 h-8 rounded-full border-2 border-white/30 shadow-inner" style={{ backgroundColor: tool === 'eraser' ? 'transparent' : color }}>
-                              {tool === 'eraser' && <svg className="w-4 h-4 text-white m-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 7l-.867 12.142A2 2.001 16.138 21H7.862a2 2 0 01-1.995-1.858L5 7" /></svg>}
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-[10px] font-black uppercase text-white tracking-widest">{tool}</span>
-                              <span className="text-[8px] font-mono text-cyan-300/70">{brushSize}px</span>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <button onClick={() => setTool('brush')} className={`p-2.5 rounded-xl ${tool === 'brush' ? 'bg-cyan-500 text-white' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
-                            <button onClick={() => setTool('eraser')} className={`p-2.5 rounded-xl ${tool === 'eraser' ? 'bg-cyan-500 text-white' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2.001 16.138 21H7.862a2 2 0 01-1.995-1.858L5 7" /></svg></button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
 
-                    {/* LIVE PREVIEW - SLIGHTLY OFFSET IF SUITE IS IN RIGHT CORNER */}
-                    <div className={`absolute z-[130] w-56 md:w-96 pointer-events-none transition-all duration-300 ${isSuiteMinimized ? 'bottom-32 right-10' : 'bottom-10 right-10'}`}>
-                      <div className={`w-full ${getAspectClass()} rounded-[2rem] border-2 border-cyan-500/40 overflow-hidden shadow-[0_40px_100px_rgba(0,0,0,0.9)] relative bg-black/60 backdrop-blur-3xl pointer-events-auto group`}>
-                        <div className="absolute top-4 left-5 z-20 flex items-center gap-2"><div className={`w-2 h-2 rounded-full ${isLoading ? 'bg-yellow-500 animate-ping' : 'bg-green-500'}`} /><span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/90 drop-shadow-lg">Aura Live: {activeStyle.name}</span></div>
-                        {styleResult ? <img src={styleResult} className={`w-full h-full object-cover transition-all duration-300 ${isLoading ? 'opacity-40 blur-xl scale-105' : 'opacity-100 scale-100'}`} /> : <div className="absolute inset-0 flex items-center justify-center bg-white/5"><span className="text-[10px] font-black uppercase tracking-[0.4em] italic text-white/20">Initializing...</span></div>}
-                        {isLoading && <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[6px] z-10"><div className="w-12 h-12 border-[4px] border-cyan-400 border-t-transparent rounded-full animate-spin" /></div>}
+                            {/* Clear All Button */}
+                            <button
+                              onClick={() => { if (confirm('Clear entire canvas?')) drawingCanvasRef.current?.clear(); }}
+                              className="w-full py-3 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center gap-2 font-bold uppercase text-xs tracking-widest border border-red-500/20"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2.001 16.138 21H7.862a2 2 0 01-1.995-1.858L5 7" /></svg>
+                              Clear Everything
+                            </button>
+
+                            {/* Sliders Area */}
+                            <div className="bg-white/5 rounded-2xl p-4 space-y-4">
+                              <div className="flex items-center gap-4">
+                                <label className="text-xs font-bold text-slate-400 w-10">SIZE</label>
+                                <input
+                                  type="range" min="1" max="100"
+                                  value={brushSize} onChange={(e) => setBrushSize(parseInt(e.target.value))}
+                                  className="flex-1 accent-cyan-400 h-2 bg-white/10 rounded-full appearance-none cursor-pointer"
+                                />
+                                <span className="text-sm font-mono text-white w-8 text-right">{brushSize}</span>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <label className="text-xs font-bold text-slate-400 w-10">FLOW</label>
+                                <input
+                                  type="range" min="0.1" max="1" step="0.1"
+                                  value={opacity} onChange={(e) => setOpacity(parseFloat(e.target.value))}
+                                  className="flex-1 accent-cyan-400 h-2 bg-white/10 rounded-full appearance-none cursor-pointer"
+                                />
+                                <span className="text-sm font-mono text-white w-8 text-right">{Math.round(opacity * 100)}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                        </div>
+                      </div>
+                    )}
+                    {/* LIVE PREVIEW - Smart Positioning to avoid overlap */}
+                    <div className={`absolute z-[130] w-40 md:w-96 pointer-events-none transition-all duration-500 ease-out right-4 ${isSuiteMinimized ? 'bottom-24' : 'bottom-4 md:bottom-10 md:right-10'}`}>
+                      <div className={`w-full ${getAspectClass()} rounded-[1.5rem] md:rounded-[2rem] border-2 border-cyan-500/40 overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.9)] relative bg-black/60 backdrop-blur-3xl pointer-events-auto group hover:scale-105 transition-transform duration-300`}>
+                        <div className="absolute top-3 left-4 z-20 flex items-center gap-2">
+                          <div className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${isLoading ? 'bg-yellow-500 animate-ping' : 'bg-green-500 shadow-[0_0_10px_#22c55e]'}`} />
+                          <span className="text-[7px] md:text-[9px] font-black uppercase tracking-[0.2em] text-white/90 drop-shadow-lg shadow-black">Aura Live</span>
+                        </div>
+                        {styleResult ? <img src={styleResult} className={`w-full h-full object-cover transition-all duration-300 ${isLoading ? 'opacity-40 blur-sm scale-105' : 'opacity-100 scale-100'}`} /> : <div className="absolute inset-0 flex items-center justify-center bg-white/5"><span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.4em] italic text-white/20">Initializing...</span></div>}
+                        {isLoading && <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[2px] z-10"><div className="w-8 h-8 md:w-12 md:h-12 border-[3px] md:border-[4px] border-cyan-400 border-t-transparent rounded-full animate-spin" /></div>}
+
+                        {/* Download Overlay */}
                         {styleResult && (
-                          <button onClick={() => handleDownload(styleResult)} className="absolute bottom-5 right-5 p-3 bg-cyan-500 hover:bg-cyan-600 rounded-full text-white shadow-2xl opacity-0 group-hover:opacity-100 transition-all active:scale-90">
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                          <button onClick={() => handleDownload(styleResult)} className="absolute bottom-3 right-3 p-2 md:p-3 bg-cyan-500 hover:bg-cyan-600 rounded-full text-white shadow-xl opacity-0 group-hover:opacity-100 transition-all active:scale-90">
+                            <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                           </button>
                         )}
                       </div>
