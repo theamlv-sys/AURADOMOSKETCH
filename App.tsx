@@ -1009,95 +1009,94 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* FUTURISTIC HEADER - Mobile Responsive */}
-      <nav className={`h-14 md:h-16 flex items-center justify-between px-3 md:px-6 border-b transition-all duration-500 z-[100] flex-shrink-0 relative ${theme === 'dark' ? 'border-b border-white/5 bg-[#050505]/80 backdrop-blur-xl supports-[backdrop-filter]:bg-[#050505]/60' : 'border-b border-slate-200/50 bg-white/80 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60 shadow-sm'}`}>
+      {/* MODERN PREMIUM HEADER - Responsive & Sleek */}
+      <nav className={`h-12 md:h-14 flex items-center justify-between px-4 md:px-6 border-b z-[100] relative transition-colors duration-300 ${theme === 'dark' ? 'bg-[#050505]/90 border-white/5 backdrop-blur-xl' : 'bg-white/90 border-slate-100 backdrop-blur-xl'}`}>
 
-        {/* LEFT: Logo + Menu */}
-        <div className="flex items-center gap-2 md:gap-4">
-          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className={`p-2 rounded-xl transition-all ${theme === 'dark' ? 'hover:bg-cyan-500/10 text-cyan-400' : 'hover:bg-slate-100 text-slate-500'}`}>
-            <svg className={`w-5 h-5 transition-transform duration-500 ${isSidebarOpen ? '' : 'rotate-180'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
+        {/* LEFT: Branding */}
+        <div className="flex items-center gap-3">
+          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 -ml-2 rounded-lg hover:bg-white/10 transition-colors md:hidden">
+            <svg className={`w-5 h-5 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
           </button>
+
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 md:w-8 md:h-8 rounded-xl bg-gradient-to-br from-cyan-400 via-cyan-500 to-blue-600 shadow-lg shadow-cyan-500/30 flex items-center justify-center text-[10px] animate-pulse" style={{ animationDuration: '3s' }}>✦</div>
-            <span className={`hidden sm:block font-light text-sm md:text-lg tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-              <span className="font-bold bg-gradient-to-r from-white to-cyan-200 bg-clip-text text-transparent">AURADOMO</span>
-              <span className="text-cyan-400 font-light">SKETCH</span>
+            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-[8px] text-white font-bold shadow-lg shadow-cyan-500/20">A</div>
+            <span className={`text-sm font-medium tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+              AURADOMO<span className="font-light opacity-50">SKETCH</span>
             </span>
           </div>
         </div>
 
-        {/* CENTER: Economy Dashboard - Compact on Mobile */}
-        <div className={`flex items-center gap-2 md:gap-4 rounded-full px-3 md:px-5 py-1.5 md:py-2 backdrop-blur-xl border transition-all ${theme === 'dark' ? 'bg-black/40 border-cyan-500/20 shadow-[0_0_20px_rgba(34,211,238,0.1)]' : 'bg-white/70 border-slate-200 shadow-sm'}`}>
-          <div className={`w-2 h-2 rounded-full ${auraCreditTime > 20 ? 'bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.8)] animate-pulse' : 'bg-red-500 animate-pulse'}`} style={{ animationDuration: '2s' }} />
-          <span className={`text-[10px] md:text-[11px] font-semibold tracking-wide ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-            <span className={`font-bold ${theme === 'dark' ? 'text-cyan-300' : 'text-slate-900'}`}>{Math.floor(auraCreditTime)}</span>
-            <span className="hidden sm:inline"> TIME</span>
-          </span>
-          <div className={`h-4 w-px ${theme === 'dark' ? 'bg-cyan-500/20' : 'bg-slate-300'}`} />
-          <span className={`text-[9px] md:text-[10px] font-black uppercase tracking-wider ${theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'}`}>{userTier}</span>
-        </div>
+        {/* CENTER: Indicators (Hidden on small mobile) */}
+        {!isSidebarOpen && (
+          <div className="hidden md:flex items-center gap-4 bg-black/5 dark:bg-white/5 rounded-full px-4 py-1.5 border border-black/5 dark:border-white/5">
+            <div className="flex items-center gap-2">
+              <div className={`w-1.5 h-1.5 rounded-full ${auraCreditTime > 20 ? 'bg-cyan-400 animate-pulse' : 'bg-red-500'}`} />
+              <span className={`text-[10px] font-bold font-mono ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>{Math.floor(auraCreditTime)}s</span>
+            </div>
+            <div className="w-px h-3 bg-current opacity-20" />
+            <span className={`text-[9px] font-black uppercase tracking-widest ${theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'}`}>{userTier}</span>
+          </div>
+        )}
 
-        {/* RIGHT: Actions - Responsive Icons */}
-        <div className="flex items-center gap-1.5 md:gap-3">
+        {/* RIGHT: Actions */}
+        <div className="flex items-center gap-2">
 
-          {/* Model Toggle - Compact on Mobile */}
+          {/* Mobile Credit Indicator (Simple) */}
+          <div className="md:hidden flex flex-col items-end leading-none mr-2">
+            <span className={`text-[10px] font-bold font-mono ${theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'}`}>{Math.floor(auraCreditTime)}s</span>
+          </div>
+
+          {/* Model Toggle (Desktop) */}
           {userTier !== 'designer' && (
-            <div className="flex items-center bg-black/20 border border-white/5 rounded-full p-0.5 backdrop-blur-md scale-90 md:scale-100 origin-right">
-              <button onClick={() => setModelMode('standard')} className={`px-2 md:px-3 py-1 rounded-full text-[7px] md:text-[8px] font-black uppercase tracking-widest transition-all ${modelMode === 'standard' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}>Std</button>
-              <button onClick={() => setModelMode('pro')} className={`px-2 md:px-3 py-1 rounded-full text-[7px] md:text-[8px] font-black uppercase tracking-widest transition-all ${modelMode === 'pro' ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/30' : 'text-slate-500 hover:text-white'}`}>Pro</button>
+            <div className="hidden md:flex bg-black/5 dark:bg-white/5 rounded-lg p-1 gap-1">
+              <button onClick={() => setModelMode('standard')} className={`px-3 py-1 rounded-md text-[9px] font-bold uppercase transition-all ${modelMode === 'standard' ? 'bg-white dark:bg-white/10 shadow-sm' : 'opacity-50 hover:opacity-100'}`}>Std</button>
+              <button onClick={() => setModelMode('pro')} className={`px-3 py-1 rounded-md text-[9px] font-bold uppercase transition-all ${modelMode === 'pro' ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-sm' : 'opacity-50 hover:opacity-100'}`}>Pro</button>
             </div>
           )}
 
-          {/* Veo Studio - Icon on Mobile, Full on Desktop */}
+          {/* Veo Studio Button */}
           <button
             onClick={() => { setVideoStartFrame(styleResult || null); setIsVideoStudioOpen(true); }}
-            className={`p-2 md:px-4 md:py-2 rounded-xl transition-all group ${theme === 'dark' ? 'bg-cyan-500/10 border border-cyan-400/20 hover:bg-cyan-500/20 hover:border-cyan-400/40 hover:shadow-[0_0_20px_rgba(34,211,238,0.2)]' : 'bg-cyan-50 border border-cyan-200 hover:bg-cyan-100'}`}
-            title="Veo Studio"
+            className="w-8 h-8 md:w-auto md:px-3 rounded-lg bg-cyan-500/10 text-cyan-500 hover:bg-cyan-500 hover:text-white transition-all flex items-center justify-center md:gap-2"
           >
-            <svg className={`w-4 h-4 ${theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-            <span className={`hidden md:inline ml-2 text-[10px] font-semibold uppercase tracking-wide ${theme === 'dark' ? 'text-cyan-300' : 'text-cyan-700'}`}>Veo</span>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+            <span className="hidden md:block text-[10px] font-bold uppercase">Veo</span>
           </button>
 
-          {/* Recharge - Icon on Mobile */}
-          <button onClick={() => setShowUpgradeModal(true)} className={`p-2 md:px-4 md:py-2 rounded-xl text-[10px] font-semibold uppercase tracking-wide transition-all ${theme === 'dark' ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 hover:scale-105' : 'bg-cyan-500 text-white shadow-md hover:bg-cyan-600'}`} title="Recharge Credits">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-            <span className="hidden md:inline ml-2">Recharge</span>
-          </button>
-
-          {/* Theme Toggle */}
-          <button onClick={toggleTheme} className={`w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-xl transition-all ${theme === 'dark' ? 'bg-white/5 text-yellow-400 hover:bg-white/10 border border-white/10' : 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200 shadow-sm'}`}>
-            {theme === 'dark' ? <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M16.243 17.657l.707.707M7.757 7.757l.707-.707M12 7a5 5 0 110 10 5 5 0 010-10z" /></svg> : <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>}
-          </button>
-
-          {/* Upload/Clear */}
-          {referenceImage ? (
-            <button onClick={handleClearPhoto} className="p-2 md:px-4 md:py-2 bg-red-500 text-white rounded-xl text-[10px] font-semibold uppercase tracking-wide hover:bg-red-600 transition-all shadow-lg shadow-red-500/25" title="Clear Image">
-              <svg className="w-4 h-4 md:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-              <span className="hidden md:inline">Clear</span>
+          {/* User Menu / Logout */}
+          <div className="relative group">
+            <button className="w-8 h-8 rounded-full bg-gradient-to-tr from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center hover:ring-2 ring-cyan-500/50 transition-all">
+              <span className="text-xs font-bold opacity-50">{user?.email?.charAt(0).toUpperCase()}</span>
             </button>
-          ) : (
-            <label className={`cursor-pointer p-2 md:px-4 md:py-2 rounded-xl text-[10px] font-semibold uppercase tracking-wide transition-all flex items-center ${theme === 'dark' ? 'bg-white/10 text-white border border-white/20 hover:bg-white/15' : 'bg-white text-slate-700 border border-slate-200 shadow-sm hover:bg-slate-50'}`} title="Upload Image">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-              <span className="hidden md:inline ml-2">Upload</span>
-              <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
-            </label>
-          )}
 
-          {/* Sign Out - Icon Only on Mobile */}
-          <button onClick={handleLogout} className={`p-2 rounded-xl transition-all ${theme === 'dark' ? 'text-slate-500 hover:text-red-400 hover:bg-red-500/10' : 'text-slate-400 hover:text-red-500'}`} title="Sign Out">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-          </button>
+            {/* Dropdown */}
+            <div className="absolute top-full right-0 mt-2 w-48 py-2 bg-white dark:bg-[#0A0A0A] border border-slate-100 dark:border-white/10 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform translate-y-2 group-hover:translate-y-0">
+              <div className="px-4 py-2 border-b border-slate-100 dark:border-white/5 mb-2">
+                <p className="text-[10px] text-slate-400">Signed in as</p>
+                <p className="text-xs font-bold truncate">{user?.email}</p>
+              </div>
 
-          {/* ADMIN BUTTON (Only show for Master Admin) */}
-          {user?.email === 'auraassistantai@gmail.com' && (
-            <button onClick={() => setShowAdmin(true)} className="p-2 rounded-xl bg-red-500/10 border border-red-500/50 text-red-400 hover:bg-red-500 hover:text-white transition-all" title="Admin">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-            </button>
-          )}
+              <button onClick={() => setShowUpgradeModal(true)} className="w-full text-left px-4 py-2 text-xs font-medium hover:bg-slate-50 dark:hover:bg-white/5 flex items-center gap-2">
+                <span className="text-cyan-500">⚡</span> Recharge Credits
+              </button>
 
+              {user?.email === 'auraassistantai@gmail.com' && (
+                <button onClick={() => setShowAdmin(true)} className="w-full text-left px-4 py-2 text-xs font-medium hover:bg-slate-50 dark:hover:bg-white/5 text-red-500">
+                  🛡 Admin Panel
+                </button>
+              )}
 
+              <button onClick={toggleTheme} className="w-full text-left px-4 py-2 text-xs font-medium hover:bg-slate-50 dark:hover:bg-white/5 flex items-center gap-2">
+                <span>{theme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode'}</span>
+              </button>
+
+              <div className="border-t border-slate-100 dark:border-white/5 mt-2 pt-2">
+                <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10">
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </nav>
 
