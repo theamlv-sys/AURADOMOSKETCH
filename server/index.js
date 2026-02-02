@@ -162,6 +162,22 @@ NEGATIVE CONSTRAINTS: ${config.negativePrompt || ''}, low resolution, artifacts,
     }
 });
 
+// --- TEMPORARY TEST HELPERS ---
+app.post('/api/reset-test-credits', async (req, res) => {
+    try {
+        const EMAIL = 'auradomoai@gmail.com';
+        const { data: user } = await supabase.from('users').select('id').eq('email', EMAIL).single();
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        await supabase.from('users').update({ credits: 1000 }).eq('id', user.id);
+        console.log(`Reset credits for ${EMAIL}`);
+        return res.json({ success: true, credits: 1000 });
+    } catch (err) {
+        console.error('Reset Error:', err);
+        return res.status(500).json({ error: err.message });
+    }
+});
+
 // 2. Generate Video (Veo 3.1)
 app.post('/api/generate-video', async (req, res) => {
     try {
