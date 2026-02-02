@@ -441,7 +441,7 @@ const App: React.FC = () => {
         endingImage: videoEndFrame || undefined,
         ingredients: videoMode === 'reference' ? videoIngredients : undefined,
         aspectRatio: videoAspectRatio,
-        model: userTier === 'studio' ? 'veo-3.1-generate-preview' : 'veo-3.1-fast-generate-preview',
+        model: 'veo-3.1-fast-generate-preview',
         resolution: actualResolution
       };
       const videoUrl = await generateVideoFromImage(config, (status) => setVideoStatus(status));
