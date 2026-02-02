@@ -103,9 +103,8 @@ NEGATIVE CONSTRAINTS: ${config.negativePrompt || ''}, low resolution, artifacts,
             contents.push({ inlineData: { mimeType: 'image/png', data: sketchData } });
         }
 
-        const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-
-        const result = await model.generateContent({
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.0-flash-exp',
             contents,
             generationConfig: {
                 temperature: 0.65,
@@ -115,7 +114,10 @@ NEGATIVE CONSTRAINTS: ${config.negativePrompt || ''}, low resolution, artifacts,
             }
         });
 
-        return result.response.text();
+        const parts = response.candidates?.[0]?.content?.parts;
+        if (!parts || parts.length === 0) throw new Error("No response from AI");
+        const textPart = parts.find(p => p.text);
+        return textPart?.text || "";
     };
 
     try {

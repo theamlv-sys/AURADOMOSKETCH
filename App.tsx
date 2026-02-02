@@ -1019,24 +1019,24 @@ const App: React.FC = () => {
           </button>
 
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-[8px] text-white font-bold shadow-lg shadow-cyan-500/20">A</div>
-            <span className={`text-sm font-medium tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-              AURADOMO<span className="font-light opacity-50">SKETCH</span>
+            <div className="w-7 h-7 md:w-8 md:h-8 rounded-xl bg-gradient-to-br from-cyan-400 via-cyan-500 to-blue-600 shadow-lg shadow-cyan-500/30 flex items-center justify-center text-[10px] animate-pulse" style={{ animationDuration: '3s' }}>✦</div>
+            <span className={`hidden sm:block font-light text-sm md:text-lg tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+              <span className="font-bold bg-gradient-to-r from-white to-cyan-200 bg-clip-text text-transparent">AURADOMO</span>
+              <span className="text-cyan-400 font-light">SKETCH</span>
             </span>
           </div>
         </div>
 
-        {/* CENTER: Indicators (Hidden on small mobile) */}
-        {!isSidebarOpen && (
-          <div className="hidden md:flex items-center gap-4 bg-black/5 dark:bg-white/5 rounded-full px-4 py-1.5 border border-black/5 dark:border-white/5">
-            <div className="flex items-center gap-2">
-              <div className={`w-1.5 h-1.5 rounded-full ${auraCreditTime > 20 ? 'bg-cyan-400 animate-pulse' : 'bg-red-500'}`} />
-              <span className={`text-[10px] font-bold font-mono ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>{Math.floor(auraCreditTime)}s</span>
-            </div>
-            <div className="w-px h-3 bg-current opacity-20" />
-            <span className={`text-[9px] font-black uppercase tracking-widest ${theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'}`}>{userTier}</span>
-          </div>
-        )}
+        {/* CENTER: Economy Dashboard - Always visible on larger screens */}
+        <div className={`flex items-center gap-2 md:gap-4 rounded-full px-3 md:px-5 py-1.5 md:py-2 backdrop-blur-xl border transition-all ${theme === 'dark' ? 'bg-black/40 border-cyan-500/20 shadow-[0_0_20px_rgba(34,211,238,0.1)]' : 'bg-white/70 border-slate-200 shadow-sm'}`}>
+          <div className={`w-2 h-2 rounded-full ${auraCreditTime > 20 ? 'bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.8)] animate-pulse' : 'bg-red-500 animate-pulse'}`} style={{ animationDuration: '2s' }} />
+          <span className={`text-[10px] md:text-[11px] font-semibold tracking-wide ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+            <span className={`font-bold ${theme === 'dark' ? 'text-cyan-300' : 'text-slate-900'}`}>{Math.floor(auraCreditTime)}</span>
+            <span className="hidden sm:inline"> TIME</span>
+          </span>
+          <div className={`h-4 w-px ${theme === 'dark' ? 'bg-cyan-500/20' : 'bg-slate-300'}`} />
+          <span className={`text-[9px] md:text-[10px] font-black uppercase tracking-wider ${theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'}`}>{userTier}</span>
+        </div>
 
         {/* RIGHT: Actions */}
         <div className="flex items-center gap-2">
@@ -1062,6 +1062,13 @@ const App: React.FC = () => {
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
             <span className="hidden md:block text-[10px] font-bold uppercase">Veo</span>
           </button>
+
+          {/* Upload Button */}
+          <label className={`cursor-pointer w-8 h-8 md:w-auto md:px-3 rounded-lg bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 text-slate-500 hover:text-cyan-500 transition-all flex items-center justify-center md:gap-2`} title="Upload Image">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+            <span className="hidden md:block text-[10px] font-bold uppercase tracking-wide">Upload</span>
+            <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+          </label>
 
           {/* User Menu / Logout */}
           <div className="relative group">
@@ -1391,8 +1398,11 @@ const App: React.FC = () => {
                 <div className="flex flex-col gap-3 md:gap-4">
                   <div className="flex items-center justify-between px-2">
                     <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-cyan-500">Final Masterpiece</span>
-                    <div className="flex gap-4">
-                      {styleResult && !isLoading && <button onClick={() => handleDownload(styleResult)} className="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-cyan-300 hover:text-cyan-500">Download</button>}
+                    <div className="flex items-center gap-4">
+                      <label className="cursor-pointer text-[8px] md:text-[10px] font-black uppercase tracking-widest text-cyan-300 hover:text-cyan-500 transition-all flex items-center gap-1">
+                        <span>Upload</span>
+                        <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+                      </label>
                       {styleResult && !isLoading && <button onClick={() => handleUpscale()} className={`text-[8px] md:text-[10px] font-black uppercase tracking-widest text-cyan-300 hover:text-cyan-500 transition-all ${userTier === 'designer' ? 'opacity-50 cursor-not-allowed' : ''}`}>Upscale {TIER_CONFIG[userTier!].upscaleRes}</button>}
                       {styleResult && !isLoading && <button onClick={() => styleResult && openVideoStudio(styleResult)} className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.1em] text-cyan-500">Animate</button>}
                     </div>
