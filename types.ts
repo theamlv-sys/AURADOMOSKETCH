@@ -38,6 +38,8 @@ export interface GenerationConfig {
   stylePreset?: string;
   referenceImage?: string;
   model?: string;
+  modelMode?: ModelMode;
+  outputResolution?: string; // '1K' | '2K' | '4K'
 }
 
 export type VideoMode = 'interpolation' | 'reference';

@@ -94,6 +94,11 @@ const App: React.FC = () => {
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const drawingCanvasRef = useRef<DrawingCanvasRef>(null);
 
+  // UPSCALE STATE
+  const [upscaleResult, setUpscaleResult] = useState<string | null>(null);
+  const [isUpscaling, setIsUpscaling] = useState(false);
+  const [showUpscaleModal, setShowUpscaleModal] = useState(false);
+
   // REBUILT CREDIT SYSTEM HOOK
   const { credits: auraCreditTime, startBurn, stopBurn, deduct, forceSave, isLoaded } = useCreditSystem(user, userTier as string);
 
@@ -573,34 +578,6 @@ const App: React.FC = () => {
   };
 
 
-  const handleUpscale = async (sketch: string) => {
-    if (!userTier || !sketch) return;
-    let cost = BURN_RATES.UPSCALE_1K;
-    if (userTier === 'studio') { cost = BURN_RATES.UPSCALE_4K; }
-    else if (userTier === 'producer') { cost = BURN_RATES.UPSCALE_2K; }
-
-    try {
-      deductCredits(cost);
-      setIsLoading(true);
-
-      const config: GenerationConfig = {
-        prompt: "Highly detailed masterpiece, 8k resolution, photorealistic textures",
-        negativePrompt: "blur, low quality",
-        aspectRatio,
-        model: 'gemini-3-pro-image-preview' // Force high quality model for upscales
-      };
-
-      const result = await generateArtFromSketch(sketch, config, activeStyle.prompt);
-      if (result) {
-        handleDownload(result, 'image');
-      }
-    } catch (err: any) {
-      if (err.message === "Insufficient Aura Credit Time") return;
-      setApiError("Upscale failed.");
-    } finally {
-      setIsLoading(false);
-    }
-  }
 
   const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
 
@@ -803,7 +780,59 @@ const App: React.FC = () => {
     }
   };
 
-  // --- SCREENS ---
+
+
+  // --- UPSCALE LOGIC ---
+  const handleUpscale = async () => {
+    if (!userTier || !currentSketchRef.current) return;
+
+    // 1. Get Config for Tier
+    const tierSettings = TIER_CONFIG[userTier];
+    if (!tierSettings) return;
+
+    // 2. Burn Credits (Upscale Cost)
+    const costMap: Record<string, number> = {
+      '1K': BURN_RATES.UPSCALE_1K,
+      '2K': BURN_RATES.UPSCALE_2K,
+      '4K': BURN_RATES.UPSCALE_4K
+    };
+    const cost = costMap[tierSettings.upscaleRes] || 1;
+
+    // Deduct
+    const hasCredit = await deduct(cost);
+    if (!hasCredit) {
+      setShowUpgradeModal(true);
+      return;
+    }
+
+    setIsUpscaling(true);
+    try {
+      // 3. Re-run Generation with PRO Mode & High Res
+      const result = await generateArtFromSketch(
+        currentSketchRef.current,
+        {
+          prompt: directives.join('. ') + (activeStyle.prompt ? '. ' + activeStyle.prompt : ''),
+          negativePrompt: "low quality, blurry, pixelated",
+          aspectRatio: aspectRatio,
+          stylePreset: activeStyle.id,
+          referenceImage: referenceImage || undefined,
+          modelMode: 'pro',
+          outputResolution: tierSettings.upscaleRes
+        },
+        activeStyle.prompt
+      );
+
+      if (result) {
+        setUpscaleResult(result);
+        setShowUpscaleModal(true);
+      }
+    } catch (err) {
+      console.error("Upscale failed:", err);
+      setApiError("Upscale Failed. Please try again.");
+    } finally {
+      setIsUpscaling(false);
+    }
+  };
 
   if (loading || (user && isProfileLoading)) {
     return (
@@ -1317,6 +1346,25 @@ const App: React.FC = () => {
                         {styleResult ? <img src={styleResult} className={`w-full h-full object-cover transition-all duration-300 ${isLoading ? 'opacity-40 blur-sm scale-105' : 'opacity-100 scale-100'}`} /> : <div className="absolute inset-0 flex items-center justify-center bg-white/5"><span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.4em] italic text-white/20">Initializing...</span></div>}
                         {isLoading && <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[2px] z-10"><div className="w-8 h-8 md:w-12 md:h-12 border-[3px] md:border-[4px] border-cyan-400 border-t-transparent rounded-full animate-spin" /></div>}
 
+                        {/* Upscale Button (Only if result exists) */}
+                        {styleResult && !isLoading && (
+                          <div className="absolute bottom-3 left-3 flex gap-2">
+                            <button
+                              onClick={() => handleUpscale()}
+                              disabled={isUpscaling}
+                              className="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-[9px] font-black uppercase tracking-widest rounded-lg shadow-lg flex items-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed group/btn"
+                            >
+                              {isUpscaling ? (
+                                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              ) : (
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
+                              )}
+                              <span className="hidden group-hover/btn:inline">Upscale</span>
+                              <span className="bg-white/20 px-1 rounded text-[8px]">{userTier ? TIER_CONFIG[userTier].upscaleRes : '1K'}</span>
+                            </button>
+                          </div>
+                        )}
+
                         {/* Download Overlay */}
                         {styleResult && (
                           <button onClick={() => handleDownload(styleResult)} className="absolute bottom-3 right-3 p-2 md:p-3 bg-cyan-500 hover:bg-cyan-600 rounded-full text-white shadow-xl opacity-0 group-hover:opacity-100 transition-all active:scale-90">
@@ -1629,6 +1677,38 @@ const App: React.FC = () => {
       `}</style>
 
       {showAdmin && <AdminDashboard onClose={() => setShowAdmin(false)} />}
+      {/* UPSCALE RESULT MODAL */}
+      {showUpscaleModal && upscaleResult && (
+        <div className="fixed inset-0 z-[10000] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="relative w-full max-w-4xl max-h-[90vh] bg-[#0f172a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-white/5 bg-black/20">
+              <h3 className="text-white font-bold text-sm tracking-widest uppercase flex items-center gap-2">
+                <span className="text-xl">✨</span> High-Res Upscale Complete
+              </h3>
+              <button onClick={() => setShowUpscaleModal(false)} className="p-2 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-colors">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            {/* Image Content */}
+            <div className="flex-1 overflow-auto p-4 bg-[url('/grid.png')] bg-repeat flex items-center justify-center">
+              <img src={upscaleResult} alt="Upscaled Art" className="max-w-full max-h-[70vh] object-contain shadow-2xl rounded-lg" />
+            </div>
+
+            {/* Actions */}
+            <div className="p-6 border-t border-white/5 bg-black/20 flex justify-end gap-4">
+              <button onClick={() => setShowUpscaleModal(false)} className="px-6 py-3 rounded-xl text-slate-400 font-bold uppercase text-xs tracking-widest hover:text-white hover:bg-white/5 transition-all">
+                Discard
+              </button>
+              <button onClick={() => handleDownload(upscaleResult, 'image')} className="px-8 py-3 rounded-xl bg-cyan-500 text-white font-bold uppercase text-xs tracking-widest hover:bg-cyan-400 shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                Download {userTier ? TIER_CONFIG[userTier].upscaleRes : '1K'} Result
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div >
   );
 };
