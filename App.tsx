@@ -425,15 +425,9 @@ const App: React.FC = () => {
     if (videoResolution === '1080p') cost = BURN_RATES.VEO_1080P;
     if (videoResolution === '4K') cost = BURN_RATES.VEO_4K;
 
-    // Check constraints
-    if (videoResolution === '4K' && userTier !== 'studio') {
-      setShowUpgradeModal(true);
-      return;
-    }
-    if (videoResolution === '1080p' && userTier === 'designer') {
-      setShowUpgradeModal(true);
-      return;
-    }
+    // Check constraints - RESTRICTIONS REMOVED AS REQUESTED BY USER
+    // if (videoResolution === '4K' && userTier !== 'studio') { ... }
+    // if (videoResolution === '1080p' && userTier === 'designer') { ... }
 
     setVideoLoading(true);
     setApiError(null);
@@ -689,7 +683,8 @@ const App: React.FC = () => {
       if (err?.message?.includes("Requested entity was not found")) {
         setApiError("Premium Session Expired. Check backend.");
       } else {
-        setApiError("Neural Synthesis Active...");
+        // Show actual error to debug the loop
+        setApiError(`Generation Failed: ${err.message?.substring(0, 50)}`);
         console.error(err);
       }
     } finally { setIsLoading(false); }
@@ -784,10 +779,8 @@ const App: React.FC = () => {
 
   // --- UPSCALE LOGIC ---
   const handleUpscale = async () => {
-    // We want to upscale the RESULT (Masterpiece), not the rough sketch.
-    // If no result exists, we fall back to sketch, but usually the button is only shown if result exists.
+    // FIX: Use styleResult (Masterpiece) if available, falling back to sketch
     const sourceImage = styleResult || currentSketchRef.current;
-
     if (!userTier || !sourceImage) return;
 
     // 1. Get Config for Tier
@@ -802,32 +795,23 @@ const App: React.FC = () => {
     };
     const cost = costMap[tierSettings.upscaleRes] || 1;
 
-    // Deduct
-    deductCredits(cost); // Throws if insufficient logic
-
-
-    setIsUpscaling(true);
     try {
+      deductCredits(cost); // Sync check
+
+      setIsUpscaling(true);
+
       // 3. Re-run Generation with PRO Mode & High Res
-      // We pass the sourceImage effectively as a "sketch" input to the API, 
-      // but configured as Image-to-Image via the model parameters.
       const config: GenerationConfig = {
         prompt: directives.join('. ') + (activeStyle.prompt ? '. ' + activeStyle.prompt : ''),
         negativePrompt: "low quality, blurry, pixelated, grain, noise, distortion, altered content, new items",
         aspectRatio,
         stylePreset: activeStyle.id,
-        // Critical: The sourceImage IS our substantial reference. 
-        // We set it as referenceImage too for maximum adherence.
-        referenceImage: sourceImage,
-        model: 'gemini-3-pro-image-preview', // Force high quality
+        referenceImage: sourceImage, // Use Masterpiece as reference
+        model: 'gemini-3-pro-image-preview',
         outputResolution: tierSettings.upscaleRes
       };
 
-      // Note: We pass sourceImage as the 'sketch' argument too, as the API expects a base string to start from.
-      const result = await generateArtFromSketch(
-        sourceImage,
-        config
-      );
+      const result = await generateArtFromSketch(sourceImage, config);
 
       if (result) {
         setUpscaleResult(result);
@@ -835,7 +819,7 @@ const App: React.FC = () => {
       }
     } catch (err: any) {
       if (err.message === "Insufficient Aura Credit Time") return;
-      setApiError("Upscale failed.");
+      setApiError("Upscale failed: " + err.message);
       console.error(err);
     } finally {
       setIsUpscaling(false);
@@ -1534,7 +1518,7 @@ const App: React.FC = () => {
 
                 {!dubSegments.length ? (
                   <>
-                    <div className="flex p-1 bg-white/5 rounded-xl border border-white/5"><button onClick={() => setVideoMode('interpolation')} className={`flex-1 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${videoMode === 'interpolation' ? 'bg-cyan-500 text-white shadow-lg' : 'text-slate-500'}`}>Story Mode</button><button onClick={() => userTier === 'studio' ? setVideoMode('reference') : setApiError("Vision mode requires Studio plan.")} className={`flex-1 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${videoMode === 'reference' ? 'bg-cyan-500 text-white shadow-lg' : 'text-slate-500'} ${userTier !== 'studio' ? 'opacity-40' : ''}`}>Vision Mode {userTier !== 'studio' && '🔒'}</button></div>
+                    <div className="flex p-1 bg-white/5 rounded-xl border border-white/5"><button onClick={() => setVideoMode('interpolation')} className={`flex-1 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${videoMode === 'interpolation' ? 'bg-cyan-500 text-white shadow-lg' : 'text-slate-500'}`}>Story Mode</button><button onClick={() => setVideoMode('reference')} className={`flex-1 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${videoMode === 'reference' ? 'bg-cyan-500 text-white shadow-lg' : 'text-slate-500'}`}>Vision Mode</button></div>
 
                     {videoMode === 'interpolation' && (
                       <div className="grid grid-cols-2 gap-3">
