@@ -816,8 +816,8 @@ const App: React.FC = () => {
       const result = await generateArtFromSketch(
         activeSource,
         {
-          prompt: directives.join('. ') + (activeStyle.prompt ? '. ' + activeStyle.prompt : ''),
-          negativePrompt: "low quality, blurry, pixelated, grain, noise", // Enhanced negative for upscaling
+          prompt: "High fidelity upscale. Preserve exact content, composition and style. Do not alter subject. Enhance resolution and details only. " + directives.join('. '),
+          negativePrompt: "low quality, blurry, pixelated, grain, noise, distortion, altered content, new items",
           aspectRatio: aspectRatio,
           stylePreset: activeStyle.id,
           // We DO NOT pass a separate referenceImage here, because activeSource IS the reference.

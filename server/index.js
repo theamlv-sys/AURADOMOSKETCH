@@ -174,10 +174,15 @@ app.post('/api/generate-video', async (req, res) => {
             },
             config: {
                 aspectRatio: config.aspectRatio || '16:9',
-                resolution: config.resolution || '720p',
-                personGeneration: 'allow_adult' // Enable more creative freedom as per Veo 3.1 docs
+                resolution: (config.resolution || '720p').toLowerCase(), // API expects '4k'
+                personGeneration: 'allow_adult'
             }
         };
+
+        // Veo 3.1 Requirement: 1080p and 4k MUST be 8 seconds
+        if (config.resolution && ['1080p', '4k', '4K'].includes(config.resolution)) {
+            videoParams.config.durationSeconds = "8";
+        }
 
         if (config.startingImage) {
             videoParams.source.image = {
