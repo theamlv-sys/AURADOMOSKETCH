@@ -420,17 +420,18 @@ const App: React.FC = () => {
   const handleGenerateVideo = async () => {
     if (!userTier) return;
 
-    // Calculate cost based on resolution
-    let cost = BURN_RATES.VEO_720P;
-    if (videoResolution === '1080p') cost = BURN_RATES.VEO_1080P;
-    if (videoResolution === '4K') cost = BURN_RATES.VEO_4K;
+    // SAFETY: Force 4K down to 1080p for stability (User requested deletion of 4K)
+    // Even if state says 4K, we send 1080p.
+    const actualResolution = videoResolution === '4K' ? '1080p' : videoResolution;
 
-    // Check constraints - RESTRICTIONS REMOVED AS REQUESTED BY USER
-    // if (videoResolution === '4K' && userTier !== 'studio') { ... }
-    // if (videoResolution === '1080p' && userTier === 'designer') { ... }
+    // Calculate cost based on ACTUAL resolution
+    let cost = BURN_RATES.VEO_720P;
+    if (actualResolution === '1080p') cost = BURN_RATES.VEO_1080P;
 
     setVideoLoading(true);
     setApiError(null);
+    console.log(`[Video] Starting generation. Res: ${actualResolution}, Tier: ${userTier}`);
+
     try {
       deductCredits(cost);
       const config: VideoGenerationConfig = {
@@ -441,13 +442,13 @@ const App: React.FC = () => {
         ingredients: videoMode === 'reference' ? videoIngredients : undefined,
         aspectRatio: videoAspectRatio,
         model: userTier === 'studio' ? 'veo-3.1-generate-preview' : 'veo-3.1-fast-generate-preview',
-        resolution: videoResolution
+        resolution: actualResolution
       };
       const videoUrl = await generateVideoFromImage(config, (status) => setVideoStatus(status));
       if (videoUrl) setGeneratedVideoUrl(videoUrl);
     } catch (err: any) {
       if (err.message === "Insufficient Aura Credit Time") return;
-      setApiError("Video synthesis interrupted. Check backend logs.");
+      setApiError("Video synthesis interrupted. " + err.message);
       console.error(err);
     } finally {
       setVideoLoading(false);
