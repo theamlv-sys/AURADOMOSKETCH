@@ -174,13 +174,10 @@ app.post('/api/generate-video', async (req, res) => {
             },
             config: {
                 aspectRatio: config.aspectRatio || '16:9',
-                resolution: config.resolution || '720p'
+                resolution: config.resolution || '720p',
+                personGeneration: 'allow_adult' // Enable more creative freedom as per Veo 3.1 docs
             }
         };
-
-        console.log('[Video Gen] Params:', JSON.stringify(videoParams, null, 2));
-
-
 
         if (config.startingImage) {
             videoParams.source.image = {

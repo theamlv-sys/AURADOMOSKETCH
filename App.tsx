@@ -783,11 +783,12 @@ const App: React.FC = () => {
 
 
   // --- UPSCALE LOGIC ---
-  const handleUpscale = async (sourceImage?: string) => {
-    // Use the provided source, or styleResult (final image), or fallback to sketch
-    const activeSource = sourceImage || styleResult || currentSketchRef.current;
+  const handleUpscale = async () => {
+    // We want to upscale the RESULT (Masterpiece), not the rough sketch.
+    // If no result exists, we fall back to sketch, but usually the button is only shown if result exists.
+    const sourceImage = styleResult || currentSketchRef.current;
 
-    if (!userTier || !activeSource) return;
+    if (!userTier || !sourceImage) return;
 
     // 1. Get Config for Tier
     const tierSettings = TIER_CONFIG[userTier];
@@ -802,38 +803,40 @@ const App: React.FC = () => {
     const cost = costMap[tierSettings.upscaleRes] || 1;
 
     // Deduct
-    const hasCredit = await deduct(cost);
-    if (!hasCredit) {
-      setShowUpgradeModal(true);
-      return;
-    }
+    deductCredits(cost); // Throws if insufficient logic
+
 
     setIsUpscaling(true);
     try {
       // 3. Re-run Generation with PRO Mode & High Res
-      // CRITICAL FIX: We pass the FINAL IMAGE (activeSource) as the input "sketch"
-      // effectively doing Image-to-Image upscaling.
+      // We pass the sourceImage effectively as a "sketch" input to the API, 
+      // but configured as Image-to-Image via the model parameters.
+      const config: GenerationConfig = {
+        prompt: directives.join('. ') + (activeStyle.prompt ? '. ' + activeStyle.prompt : ''),
+        negativePrompt: "low quality, blurry, pixelated, grain, noise, distortion, altered content, new items",
+        aspectRatio,
+        stylePreset: activeStyle.id,
+        // Critical: The sourceImage IS our substantial reference. 
+        // We set it as referenceImage too for maximum adherence.
+        referenceImage: sourceImage,
+        model: 'gemini-3-pro-image-preview', // Force high quality
+        outputResolution: tierSettings.upscaleRes
+      };
+
+      // Note: We pass sourceImage as the 'sketch' argument too, as the API expects a base string to start from.
       const result = await generateArtFromSketch(
-        activeSource,
-        {
-          prompt: "High fidelity upscale. Preserve exact content, composition and style. Do not alter subject. Enhance resolution and details only. " + directives.join('. '),
-          negativePrompt: "low quality, blurry, pixelated, grain, noise, distortion, altered content, new items",
-          aspectRatio: aspectRatio,
-          stylePreset: activeStyle.id,
-          // We DO NOT pass a separate referenceImage here, because activeSource IS the reference.
-          modelMode: 'pro',
-          outputResolution: tierSettings.upscaleRes
-        },
-        activeStyle.prompt
+        sourceImage,
+        config
       );
 
       if (result) {
         setUpscaleResult(result);
         setShowUpscaleModal(true);
       }
-    } catch (err) {
-      console.error("Upscale failed:", err);
-      setApiError("Upscale Failed. Please try again.");
+    } catch (err: any) {
+      if (err.message === "Insufficient Aura Credit Time") return;
+      setApiError("Upscale failed.");
+      console.error(err);
     } finally {
       setIsUpscaling(false);
     }
