@@ -1393,7 +1393,7 @@ const App: React.FC = () => {
                     <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-cyan-500">Final Masterpiece</span>
                     <div className="flex gap-4">
                       {styleResult && !isLoading && <button onClick={() => handleDownload(styleResult)} className="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-cyan-300 hover:text-cyan-500">Download</button>}
-                      {styleResult && !isLoading && <button onClick={() => currentSketchRef.current && handleUpscale(currentSketchRef.current)} className={`text-[8px] md:text-[10px] font-black uppercase tracking-widest text-cyan-300 hover:text-cyan-500 transition-all ${userTier === 'designer' ? 'opacity-50 cursor-not-allowed' : ''}`}>Upscale {TIER_CONFIG[userTier!].upscaleRes}</button>}
+                      {styleResult && !isLoading && <button onClick={() => handleUpscale()} className={`text-[8px] md:text-[10px] font-black uppercase tracking-widest text-cyan-300 hover:text-cyan-500 transition-all ${userTier === 'designer' ? 'opacity-50 cursor-not-allowed' : ''}`}>Upscale {TIER_CONFIG[userTier!].upscaleRes}</button>}
                       {styleResult && !isLoading && <button onClick={() => styleResult && openVideoStudio(styleResult)} className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.1em] text-cyan-500">Animate</button>}
                     </div>
                   </div>
@@ -1438,7 +1438,11 @@ const App: React.FC = () => {
                       <div key={item.id} className="relative group w-20 h-20 md:w-28 md:h-28 flex-shrink-0 snap-center">
                         {/* Image container */}
                         <div
-                          onClick={() => setStyleResult(item.result)}
+                          onClick={() => {
+                            setStyleResult(item.result);
+                            currentSketchRef.current = item.sketch;
+                            // Optional: Restore directives/prompt if needed
+                          }}
                           className="w-full h-full rounded-2xl md:rounded-3xl border-2 cursor-pointer overflow-hidden group-hover:scale-105 active:scale-95 transition-all bg-black border-white/10 hover:border-cyan-400/50 shadow-[0_10px_40px_rgba(0,0,0,0.3)]"
                         >
                           <img src={item.result} className="w-full h-full object-cover" />
@@ -1677,6 +1681,19 @@ const App: React.FC = () => {
       `}</style>
 
       {showAdmin && <AdminDashboard onClose={() => setShowAdmin(false)} />}
+
+      {/* UPSCALE LOADING OVERLAY */}
+      {isUpscaling && (
+        <div className="fixed inset-0 z-[10001] bg-black/80 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in duration-500">
+          <div className="relative w-24 h-24 mb-8">
+            <div className="absolute inset-0 border-t-4 border-cyan-500 rounded-full animate-spin"></div>
+            <div className="absolute inset-3 border-r-4 border-pink-500 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
+          </div>
+          <h2 className="text-2xl font-light tracking-[0.2em] text-white uppercase animate-pulse">Enhancing Masterpiece</h2>
+          <p className="text-cyan-400 text-xs tracking-widest mt-4 uppercase font-bold">Applying Nano-Banana Pro Intelligence...</p>
+        </div>
+      )}
+
       {/* UPSCALE RESULT MODAL */}
       {showUpscaleModal && upscaleResult && (
         <div className="fixed inset-0 z-[10000] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
