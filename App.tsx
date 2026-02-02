@@ -1585,7 +1585,9 @@ const App: React.FC = () => {
                       <div className="grid grid-cols-3 gap-2">
                         <button onClick={() => setVideoResolution('720p')} className={`py-2 rounded-lg border text-[9px] font-black ${videoResolution === '720p' ? 'bg-cyan-500 border-cyan-400 text-white' : 'border-white/10 text-slate-500'}`}>720p</button>
                         <button onClick={() => setVideoResolution('1080p')} className={`py-2 rounded-lg border text-[9px] font-black ${videoResolution === '1080p' ? 'bg-cyan-500 border-cyan-400 text-white' : 'border-white/10 text-slate-500'} ${userTier === 'designer' ? 'opacity-30' : ''}`}>{userTier === 'designer' ? '🔒 1080p' : '1080p'}</button>
-                        <button onClick={() => setVideoResolution('4K')} className={`py-2 rounded-lg border text-[9px] font-black ${videoResolution === '4K' ? 'bg-cyan-500 border-cyan-400 text-white' : 'border-white/10 text-slate-500'} ${userTier !== 'studio' ? 'opacity-30' : ''}`}>{userTier !== 'studio' ? '🔒 4K' : '4K'}</button>
+                        {userTier === 'studio' && (
+                          <button onClick={() => setVideoResolution('4K')} className={`py-2 rounded-lg border text-[9px] font-black ${videoResolution === '4K' ? 'bg-cyan-500 border-cyan-400 text-white' : 'border-white/10 text-slate-500'}`}>4K</button>
+                        )}
                       </div>
                     </section>
 

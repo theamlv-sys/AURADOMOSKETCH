@@ -127,6 +127,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                                     <th className="p-4 font-medium">Reset Date</th>
                                     <th className="p-4 font-medium">Next Reset</th>
                                     <th className="p-4 font-medium">Joined</th>
+                                    <th className="p-4 font-medium">Admin Actions</th>
                                     <th className="p-4 font-medium">ID</th>
                                 </tr>
                             </thead>
@@ -158,6 +159,43 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                                             })()}
                                         </td>
                                         <td className="p-4 text-slate-500">{new Date(user.created_at).toLocaleDateString()}</td>
+                                        <td className="p-4 flex gap-2">
+                                            <button
+                                                onClick={async () => {
+                                                    if (!confirm(`Reset credits for ${user.email} to 1000?`)) return;
+                                                    try {
+                                                        const { data: { session } } = await supabase.auth.getSession();
+                                                        await fetch(`${API_BASE_URL}/api/admin/update-credits`, {
+                                                            method: 'POST',
+                                                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+                                                            body: JSON.stringify({ userId: user.id, action: 'reset', value: 1000 })
+                                                        });
+                                                        fetchUsers();
+                                                    } catch (e) { alert("Failed"); }
+                                                }}
+                                                className="px-2 py-1 bg-red-500/20 text-red-300 hover:bg-red-500 hover:text-white rounded text-[9px] uppercase font-bold transition-all"
+                                            >
+                                                Reset
+                                            </button>
+                                            <button
+                                                onClick={async () => {
+                                                    const amount = prompt("Enter credits to add:", "500");
+                                                    if (!amount) return;
+                                                    try {
+                                                        const { data: { session } } = await supabase.auth.getSession();
+                                                        await fetch(`${API_BASE_URL}/api/admin/update-credits`, {
+                                                            method: 'POST',
+                                                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+                                                            body: JSON.stringify({ userId: user.id, action: 'add', value: parseInt(amount) })
+                                                        });
+                                                        fetchUsers();
+                                                    } catch (e) { alert("Failed"); }
+                                                }}
+                                                className="px-2 py-1 bg-green-500/20 text-green-300 hover:bg-green-500 hover:text-white rounded text-[9px] uppercase font-bold transition-all"
+                                            >
+                                                Add
+                                            </button>
+                                        </td>
                                         <td className="p-4 text-xs text-slate-600 font-mono">{user.id.slice(0, 8)}...</td>
                                     </tr>
                                 ))}

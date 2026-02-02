@@ -176,6 +176,39 @@ app.post('/api/reset-test-credits', async (req, res) => {
         console.error('Reset Error:', err);
         return res.status(500).json({ error: err.message });
     }
+}
+});
+
+// Admin Credit Management
+app.post('/api/admin/update-credits', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'No token' });
+
+        const token = authHeader.split(' ')[1];
+        const { data: { user }, error } = await supabase.auth.getUser(token);
+
+        if (error || !user || user.email !== 'auraassistantai@gmail.com') {
+            return res.status(403).json({ error: 'Unauthorized' });
+        }
+
+        const { userId, action, value } = req.body;
+
+        // Fetch current to increment if needed
+        const { data: targetUser } = await supabase.from('users').select('credits').eq('id', userId).single();
+        if (!targetUser) return res.status(404).json({ error: 'Target user not found' });
+
+        let newCredits = targetUser.credits;
+        if (action === 'reset') newCredits = value;
+        if (action === 'add') newCredits += value;
+
+        await supabase.from('users').update({ credits: newCredits }).eq('id', userId);
+        return res.json({ success: true, newCredits });
+
+    } catch (err) {
+        console.error('Admin Update Error:', err);
+        return res.status(500).json({ error: err.message });
+    }
 });
 
 // 2. Generate Video (Veo 3.1)
