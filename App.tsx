@@ -783,8 +783,11 @@ const App: React.FC = () => {
 
 
   // --- UPSCALE LOGIC ---
-  const handleUpscale = async () => {
-    if (!userTier || !currentSketchRef.current) return;
+  const handleUpscale = async (sourceImage?: string) => {
+    // Use the provided source, or styleResult (final image), or fallback to sketch
+    const activeSource = sourceImage || styleResult || currentSketchRef.current;
+
+    if (!userTier || !activeSource) return;
 
     // 1. Get Config for Tier
     const tierSettings = TIER_CONFIG[userTier];
@@ -808,14 +811,16 @@ const App: React.FC = () => {
     setIsUpscaling(true);
     try {
       // 3. Re-run Generation with PRO Mode & High Res
+      // CRITICAL FIX: We pass the FINAL IMAGE (activeSource) as the input "sketch"
+      // effectively doing Image-to-Image upscaling.
       const result = await generateArtFromSketch(
-        currentSketchRef.current,
+        activeSource,
         {
           prompt: directives.join('. ') + (activeStyle.prompt ? '. ' + activeStyle.prompt : ''),
-          negativePrompt: "low quality, blurry, pixelated",
+          negativePrompt: "low quality, blurry, pixelated, grain, noise", // Enhanced negative for upscaling
           aspectRatio: aspectRatio,
           stylePreset: activeStyle.id,
-          referenceImage: referenceImage || undefined,
+          // We DO NOT pass a separate referenceImage here, because activeSource IS the reference.
           modelMode: 'pro',
           outputResolution: tierSettings.upscaleRes
         },
