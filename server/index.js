@@ -63,20 +63,20 @@ app.post('/api/webhook', express.raw({ type: 'application/json' }), async (reque
     response.send();
 });
 
-
+app.use(express.json({ limit: '50mb' }));
 
 // --- ENDPOINTS ---
 
 // 1. Generate Art - Using Official Google SDK Method
 app.post('/api/generate-art', async (req, res) => {
-    const { sketchBase64, config, stylePrompt } = req.body;
+    try {
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const { sketchBase64, config, stylePrompt } = req.body;
 
-    // Helper to run generation with a specific key
-    const generateWithKey = async (apiKey) => {
-        if (!apiKey) throw new Error("API Key missing");
-        const ai = new GoogleGenAI({ apiKey });
-
+        // Construct prompt with explicit instructions for reference image + sketch combination
         let userInstructions = config.prompt || 'Execute a total stylistic transformation of the entire frame.';
+
+        // If both reference image and sketch are provided, add explicit merge instruction
         if (config.referenceImage && sketchBase64) {
             userInstructions = `Take the reference photo and incorporate the drawn sketch elements into it. Merge and blend the sketch strokes naturally into the scene while maintaining the style. ${userInstructions}`;
         }
@@ -88,65 +88,83 @@ USER INSTRUCTIONS: ${userInstructions}
 NEGATIVE CONSTRAINTS: ${config.negativePrompt || ''}, low resolution, artifacts, partial rendering, photo remnants.
 `.trim();
 
-        const contents = [{ text: finalPrompt }];
+        // Build contents array for the API
+        const contents = [];
 
-        // Add reference image FIRST
+        // Add the text prompt
+        contents.push({ text: finalPrompt });
+
+        // IMPORTANT: Add reference image FIRST, then sketch overlay
+        // This order helps the AI understand: "base image" + "drawn additions"
         if (config.referenceImage) {
             const refData = config.referenceImage.split(',')[1];
-            contents.push({ inlineData: { mimeType: 'image/jpeg', data: refData } });
+            contents.push({
+                inlineData: {
+                    mimeType: 'image/jpeg',
+                    data: refData
+                }
+            });
         }
 
-        // Add sketch SECOND
+        // Add the sketch/canvas image as the overlay/modification layer
         if (sketchBase64) {
             const sketchData = sketchBase64.split(',')[1];
-            contents.push({ inlineData: { mimeType: 'image/png', data: sketchData } });
+            contents.push({
+                inlineData: {
+                    mimeType: 'image/png',
+                    data: sketchData
+                }
+            });
         }
 
-        let modelId = config.model || 'gemini-1.5-flash';
-        if (!modelId.startsWith('models/')) modelId = `models/${modelId}`;
+        console.log('[Image Gen] Calling ai.models.generateContent...');
 
+        // Use the CORRECT API method from official Google documentation
         const response = await ai.models.generateContent({
-            model: modelId,
-            contents,
-            generationConfig: {
-                temperature: 0.65,
-                topP: 0.9,
-                topK: 40,
-                maxOutputTokens: 8192,
-            }
+            model: config.model || 'gemini-2.5-flash-image',
+            contents: contents,
         });
 
-        const text = response.candidates?.[0]?.content?.parts?.[0]?.text;
+        console.log('[Image Gen] Response received, checking parts...');
 
-        // Handle Safety or Empty Response
-        if (!text) {
-            const finishReason = response.candidates?.[0]?.finishReason;
-            if (finishReason === 'SAFETY') throw new Error("Safety Filter: Your request was blocked. Please try a different drawing or prompt.");
-            if (finishReason === 'RECITATION') throw new Error("Model Refusal: The response would have included copyrighted content.");
-            throw new Error(`AI Refusal: The model didn't return text (Reason: ${finishReason || 'Unknown'}). Try adjusting your sketch.`);
+        const candidate = response.candidates?.[0];
+        if (candidate?.finishReason === 'SAFETY') {
+            throw new Error("AI Refusal: Content blocked by safety filters. Try modifying your prompt or drawing.");
         }
-        return text;
-    };
 
-    try {
-        console.log("[GenAI] Attempting Art Generation...");
-        try {
-            return res.json({ result: await generateWithKey(process.env.GEMINI_API_KEY) });
-        } catch (error) {
-            const isRateLimit = error.message.includes('429') || error.message.includes('Quota') || error.status === 429;
-            if (isRateLimit && process.env.GEMINI_API_KEY_SECONDARY) {
-                console.warn("[GenAI] Switching to Secondary Key for Image...");
-                return res.json({ result: await generateWithKey(process.env.GEMINI_API_KEY_SECONDARY) });
+        const parts = candidate?.content?.parts;
+
+        if (!parts || parts.length === 0) {
+            console.log('[Image Gen] No parts in response:', JSON.stringify(response, null, 2));
+            throw new Error("No content generated by model. (Reason: Empty Response)");
+        }
+
+        for (const part of parts) {
+            if (part.text) {
+                console.log('[Image Gen] Text response:', part.text);
+            } else if (part.inlineData) {
+                // This is the image data - it's already base64 encoded
+                const imageData = part.inlineData.data;
+                const mimeType = part.inlineData.mimeType || 'image/png';
+
+                console.log('[Image Gen] SUCCESS! Image data length:', imageData.length);
+                console.log('[Image Gen] MIME type:', mimeType);
+
+                return res.json({
+                    result: `data:${mimeType};base64,${imageData}`
+                });
             }
-            throw error;
         }
+
+        // If we get here, no image was found in the response
+        const textPart = parts.find(p => p.text);
+        throw new Error(textPart?.text || "No image generated by model");
+
     } catch (err) {
-        console.error("GenAI Error:", err);
+        console.error('Generation Error:', err);
         return res.status(500).json({ error: err.message });
     }
 });
-
-
 
 // --- TEMPORARY TEST HELPERS ---
 app.post('/api/reset-test-credits', async (req, res) => {
@@ -198,19 +216,19 @@ app.post('/api/admin/update-credits', async (req, res) => {
 
 // 2. Generate Video (Veo 3.1)
 app.post('/api/generate-video', async (req, res) => {
-    const { config } = req.body;
-
-    const generateVideoWithKey = async (apiKey) => {
-        if (!apiKey) throw new Error("API Key missing");
-        const ai = new GoogleGenAI({ apiKey });
+    try {
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const { config } = req.body;
 
         const videoParams = {
-            model: config.model || 'veo-3.1-generate-preview',
-            source: { prompt: config.prompt || 'Cinematic movement' },
+            model: config.model || 'veo-3.1-fast-generate-preview',
+            source: {
+                prompt: config.prompt || 'Cinematic movement',
+            },
             config: {
                 aspectRatio: config.aspectRatio || '16:9',
                 resolution: config.resolution || '720p',
-                personGeneration: 'allow_adult'
+                personGeneration: 'allow_adult' // Enable more creative freedom as per Veo 3.1 docs
             }
         };
 
@@ -228,61 +246,73 @@ app.post('/api/generate-video', async (req, res) => {
             };
         }
 
-        if (config.ingredients && Array.isArray(config.ingredients)) {
+        // Map ingredients to reference images for Image-based direction
+        if (config.ingredients && Array.isArray(config.ingredients) && config.ingredients.length > 0) {
             videoParams.config.referenceImages = config.ingredients.map(imgData => ({
-                image: { imageBytes: imgData.split(',')[1], mimeType: 'image/jpeg' },
-                referenceType: 'asset'
+                image: {
+                    imageBytes: imgData.split(',')[1],
+                    mimeType: 'image/jpeg'
+                },
+                referenceType: 'asset' // Default to asset for character/object consistency
             }));
         }
 
+        // 1. Kick off the generation
         let operation = await ai.models.generateVideos(videoParams);
+
+        // 2. Poll for completion
         let attempts = 0;
-        const maxAttempts = 30;
+        const maxAttempts = 30; // 30 * 5s = 150s (2.5 mins)
 
         while (!operation.done && attempts < maxAttempts) {
             await new Promise(resolve => setTimeout(resolve, 5000));
             operation = await ai.operations.getVideosOperation({ operation });
             attempts++;
-            console.log(`Video progress (${apiKey.slice(-4)}): ${attempts}/${maxAttempts}`);
+            console.log(`Video generation progress: ${attempts}/${maxAttempts}`);
         }
 
         if (operation.done && operation.response?.generatedVideos?.[0]?.video) {
             const video = operation.response.generatedVideos[0].video;
-            let base64;
+            // Video object validation passed
 
             if (video.videoBytes) {
-                base64 = video.videoBytes;
-            } else if (video.uri) {
-                const response = await fetch(video.uri, { headers: { 'x-goog-api-key': apiKey } });
-                if (!response.ok) throw new Error(`Video Fetch Error: ${response.status}`);
-                const arrayBuffer = await response.arrayBuffer();
-                base64 = Buffer.from(arrayBuffer).toString('base64');
+                return res.json({
+                    videoBase64: video.videoBytes,
+                    mimeType: video.mimeType || 'video/mp4'
+                });
             }
 
-            if (base64) {
-                return { videoBase64: base64, mimeType: video.mimeType || 'video/mp4' };
+            if (video.uri) {
+                console.log('Fetching video from URI:', video.uri);
+                try {
+                    // The URI is a protected Google Cloud Storage resource, so we need to pass the API key
+                    const response = await fetch(video.uri, {
+                        headers: {
+                            'x-goog-api-key': process.env.GEMINI_API_KEY
+                        }
+                    });
+                    if (!response.ok) throw new Error(`Failed to fetch video: ${response.status} ${response.statusText}`);
+                    const arrayBuffer = await response.arrayBuffer();
+                    const base64 = Buffer.from(arrayBuffer).toString('base64');
+
+                    console.log('Video fetched and encoded. Length:', base64.length);
+
+                    return res.json({
+                        videoBase64: base64,
+                        mimeType: video.mimeType || 'video/mp4'
+                    });
+                } catch (fetchErr) {
+                    console.error('Error fetching video from URI:', fetchErr);
+                    throw fetchErr;
+                }
             }
         }
 
-        throw new Error(operation.error?.message || "Video generation failed to produce output.");
-    };
+        console.log('Operation Status:', JSON.stringify(operation, null, 2));
+        throw new Error(operation.error?.message || "Video generation timed out or failed to produce a valid video object.");
 
-    try {
-        console.log("[Veo] Attempting Video Generation...");
-        try {
-            const result = await generateVideoWithKey(process.env.GEMINI_API_KEY);
-            return res.json(result);
-        } catch (error) {
-            const isRateLimit = error.message.includes('429') || error.message.includes('Quota') || error.status === 429;
-            if (isRateLimit && process.env.GEMINI_API_KEY_SECONDARY) {
-                console.warn("[Veo] Switching to Secondary Key for Video...");
-                const result = await generateVideoWithKey(process.env.GEMINI_API_KEY_SECONDARY);
-                return res.json(result);
-            }
-            throw error;
-        }
     } catch (err) {
-        console.error('Video Error:', err);
+        console.error('Video Generation Error:', err);
         return res.status(500).json({ error: err.message });
     }
 });
