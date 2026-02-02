@@ -652,14 +652,16 @@ const App: React.FC = () => {
         model: selectedModel
       };
 
+      // Fallback prompt if style is missing (Prevents "No Content" error)
+      const effectivePrompt = currentStyle?.prompt || activeStyle?.prompt || "A high quality drawing";
       const pencilStyle = STYLE_PRESETS.find(s => s.id === 'pencil')?.prompt || "Graphite pencil sketch.";
 
       // We only generate pencil sketch if expanded to save tokens in condensed view
       const tasks = isExpanded
-        ? [generateArtFromSketch(effectiveSketch, config, currentStyle.prompt)]
+        ? [generateArtFromSketch(effectiveSketch, config, effectivePrompt)]
         : [
           generateArtFromSketch(effectiveSketch, config, pencilStyle),
-          generateArtFromSketch(effectiveSketch, config, currentStyle.prompt)
+          generateArtFromSketch(effectiveSketch, config, effectivePrompt)
         ];
 
       const results = await Promise.all(tasks);
@@ -684,7 +686,12 @@ const App: React.FC = () => {
         setApiError("Premium Session Expired. Check backend.");
       } else {
         // Show actual error to debug the loop
-        setApiError(`Generation Failed: ${err.message?.substring(0, 50)}`);
+        const msg = err.message || "Unknown error";
+        if (msg.includes("No content") || msg.includes("safety")) {
+          setApiError("Safety Guard: Try changing style or drawing.");
+        } else {
+          setApiError(`Generation Failed: ${msg.substring(0, 50)}`);
+        }
         console.error(err);
       }
     } finally { setIsLoading(false); }

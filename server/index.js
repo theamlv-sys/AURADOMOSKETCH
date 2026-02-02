@@ -20,7 +20,8 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
 
 // Middleware
 app.use(cors());
-app.use(cors());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // --- STRIPE WEBHOOK (Must be before express.json) ---
 app.post('/api/webhook', express.raw({ type: 'application/json' }), async (request, response) => {
