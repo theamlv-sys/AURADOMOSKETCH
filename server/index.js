@@ -174,8 +174,8 @@ app.post('/api/generate-video', async (req, res) => {
             },
             config: {
                 aspectRatio: config.aspectRatio || '16:9',
-                resolution: (config.resolution || '720p').toLowerCase(), // API expects '4k'
-                personGeneration: 'allow_adult'
+                resolution: config.resolution || '720p',
+                personGeneration: 'allow_adult' // Enable more creative freedom as per Veo 3.1 docs
             }
         };
 
