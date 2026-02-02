@@ -179,10 +179,7 @@ app.post('/api/generate-video', async (req, res) => {
             }
         };
 
-        // Veo 3.1 Requirement: 1080p and 4k MUST be 8 seconds
-        if (config.resolution && ['1080p', '4k', '4K'].includes(config.resolution)) {
-            videoParams.config.durationSeconds = "8";
-        }
+
 
         if (config.startingImage) {
             videoParams.source.image = {
