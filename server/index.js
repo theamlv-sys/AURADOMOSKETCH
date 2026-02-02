@@ -176,7 +176,6 @@ app.post('/api/reset-test-credits', async (req, res) => {
         console.error('Reset Error:', err);
         return res.status(500).json({ error: err.message });
     }
-}
 });
 
 // Admin Credit Management
