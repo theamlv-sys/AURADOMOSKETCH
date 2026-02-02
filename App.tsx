@@ -420,17 +420,16 @@ const App: React.FC = () => {
   const handleGenerateVideo = async () => {
     if (!userTier) return;
 
-    // SAFETY: Force 4K down to 1080p for stability (User requested deletion of 4K)
-    // Even if state says 4K, we send 1080p.
-    const actualResolution = videoResolution === '4K' ? '1080p' : videoResolution;
 
-    // Calculate cost based on ACTUAL resolution
+
+    // Calculate cost based on resolution
     let cost = BURN_RATES.VEO_720P;
-    if (actualResolution === '1080p') cost = BURN_RATES.VEO_1080P;
+    if (videoResolution === '1080p') cost = BURN_RATES.VEO_1080P;
+    if (videoResolution === '4K') cost = BURN_RATES.VEO_4K;
 
     setVideoLoading(true);
     setApiError(null);
-    console.log(`[Video] Starting generation. Res: ${actualResolution}, Tier: ${userTier}`);
+    console.log(`[Video] Starting generation. Res: ${videoResolution}, Tier: ${userTier}`);
 
     try {
       deductCredits(cost);
@@ -442,7 +441,7 @@ const App: React.FC = () => {
         ingredients: videoMode === 'reference' ? videoIngredients : undefined,
         aspectRatio: videoAspectRatio,
         model: 'veo-3.1-fast-generate-preview',
-        resolution: actualResolution
+        resolution: videoResolution
       };
       const videoUrl = await generateVideoFromImage(config, (status) => setVideoStatus(status));
       if (videoUrl) setGeneratedVideoUrl(videoUrl);
@@ -1569,6 +1568,9 @@ const App: React.FC = () => {
                       <div className="grid grid-cols-3 gap-2">
                         <button onClick={() => setVideoResolution('720p')} className={`py-2 rounded-lg border text-[9px] font-black ${videoResolution === '720p' ? 'bg-cyan-500 border-cyan-400 text-white' : 'border-white/10 text-slate-500'}`}>720p</button>
                         <button onClick={() => setVideoResolution('1080p')} className={`py-2 rounded-lg border text-[9px] font-black ${videoResolution === '1080p' ? 'bg-cyan-500 border-cyan-400 text-white' : 'border-white/10 text-slate-500'} ${userTier === 'designer' ? 'opacity-30' : ''}`}>{userTier === 'designer' ? '🔒 1080p' : '1080p'}</button>
+                        {userTier === 'studio' && (
+                          <button onClick={() => setVideoResolution('4K')} className={`py-2 rounded-lg border text-[9px] font-black ${videoResolution === '4K' ? 'bg-cyan-500 border-cyan-400 text-white' : 'border-white/10 text-slate-500'}`}>4K</button>
+                        )}
                       </div>
                     </section>
 
