@@ -11,7 +11,7 @@ import AdminDashboard from './components/AdminDashboard'; // Import Admin Compon
 import { useCreditSystem } from './hooks/useCreditSystem';
 import { API_BASE_URL } from './config';
 
-const stripePromise = loadStripe((import.meta as any).env.VITE_STRIPE_PUBLISHABLE_KEY);
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const STYLE_PRESETS: StylePreset[] = [
   { id: 'cartoon_mix', name: 'Cartoon Mix', prompt: 'STRICT_LOCKDOWN: ULTIMATE CARTOON HYBRID. Fusion of adult sci-fi thin-line precision (Rick and Morty style), iconic yellow-saturated skin tones (Simpsons style), and sharp urban anime aesthetics (Boondocks style). MANDATORY: Rendered with high-budget Pixar-quality 3D volumetric lighting, cinematic surface scattering, and perfectly smooth textures. FORBIDDEN: Any realism, photographic skin, or real-world human features.', thumbnail: '📺' },
@@ -283,7 +283,7 @@ const App: React.FC = () => {
         const stripe = await stripePromise;
         if (!stripe) throw new Error('Stripe JS not loaded. Check your Internet or AdBlock.');
 
-        const { error } = await (stripe as any).redirectToCheckout({ sessionId: id });
+        const { error } = await stripe.redirectToCheckout({ sessionId: id });
         if (error) throw error;
       } else {
         throw new Error('No Session ID returned');
@@ -1010,136 +1010,111 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* MINIMALIST SLIM HEADER */}
-      <nav className={`h-16 md:h-18 flex items-center justify-between px-4 md:px-8 border-b transition-all duration-500 z-[100] flex-shrink-0 relative ${theme === 'dark'
-        ? 'border-white/5 bg-[#080808]/90 backdrop-blur-xl'
-        : 'border-slate-200/60 bg-white/90 backdrop-blur-xl shadow-sm'
-        }`}>
+      {/* FUTURISTIC PREMIUM HEADER */}
+      <nav className={`h-16 md:h-20 flex items-center justify-between px-4 md:px-8 border-b transition-all duration-500 z-[100] flex-shrink-0 relative ${theme === 'dark' ? 'border-white/5 bg-[#050505]/80 backdrop-blur-2xl' : 'border-slate-200/60 bg-white/90 backdrop-blur-2xl shadow-sm'}`}>
 
-        {/* LEFT: Branding & Menu */}
-        <div className="flex items-center gap-3 md:gap-6">
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className={`p-2 rounded-xl transition-all duration-300 ${theme === 'dark' ? 'hover:bg-white/5 text-slate-400' : 'hover:bg-slate-100 text-slate-500'
-              }`}
-          >
-            <svg className={`w-5 h-5 transition-transform duration-500 ${isSidebarOpen ? '' : 'rotate-180'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-            </svg>
+        {/* LEFT: Logo + Menu */}
+        <div className="flex items-center gap-4">
+          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className={`p-2.5 rounded-xl transition-all duration-300 ${theme === 'dark' ? 'hover:bg-cyan-500/10 text-cyan-400' : 'hover:bg-slate-100 text-slate-500'}`}>
+            <svg className={`w-5 h-5 transition-transform duration-500 ${isSidebarOpen ? '' : 'rotate-180'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
           </button>
 
-          <div className="flex items-center gap-3 select-none cursor-default">
-            <div className={`w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 shadow-lg flex items-center justify-center text-white text-xs`}>
-              <span>✦</span>
+          <div className="flex items-center gap-3 select-none">
+            <div className="w-8 h-8 md:w-10 md:h-10 rounded-2xl bg-gradient-to-br from-cyan-400 via-blue-500 to-indigo-600 shadow-[0_0_20px_rgba(6,182,212,0.4)] flex items-center justify-center text-white text-[12px] animate-pulse relative overflow-hidden group">
+              <span className="relative z-10">✦</span>
+              <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500 rounded-2xl" />
             </div>
-            <div className="flex flex-col leading-none">
-              <div className="flex items-center gap-1">
-                <span className={`text-lg md:text-xl font-bold tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                  Auradomo
-                </span>
-                <span className="text-cyan-500 font-black tracking-widest text-[10px] uppercase">Sketch</span>
-              </div>
+            <div className={`hidden sm:flex flex-col gap-0.5 leading-none tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+              <span className="font-bold text-lg tracking-wide bg-gradient-to-r from-white via-cyan-100 to-cyan-200 bg-clip-text text-transparent filter drop-shadow hover:tracking-widest transition-all duration-500">AURADOMO</span>
+              <span className="text-[10px] font-medium tracking-[0.4em] text-cyan-400 uppercase opacity-80 pl-0.5">Sketch</span>
             </div>
           </div>
         </div>
 
-        {/* CENTER: Aura Credits (Always Visible) */}
-        <div className={`flex items-center gap-3 px-4 py-2 rounded-full border transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'
-          }`}>
-          <div className={`w-2 h-2 rounded-full ${auraCreditTime > 20 ? 'bg-cyan-500 animate-pulse' : 'bg-red-500 animate-pulse'}`} />
-          <span className={`text-sm font-bold tabular-nums ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-            {Math.floor(auraCreditTime)} <span className="text-[10px] font-medium text-slate-500 tracking-widest uppercase ml-0.5">Time</span>
-          </span>
-          <div className={`hidden sm:block h-3 w-px mx-1 ${theme === 'dark' ? 'bg-white/10' : 'bg-slate-300'}`} />
-          <span className={`hidden sm:block text-[9px] font-black uppercase tracking-widest ${theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'}`}>
-            {userTier}
-          </span>
+        {/* CENTER: Economy Dashboard - Floating Glass Pill */}
+        <div className={`hidden md:flex items-center gap-6 rounded-full px-6 py-2.5 backdrop-blur-md border transition-all duration-300 transform hover:scale-105 ${theme === 'dark' ? 'bg-black/40 border-cyan-500/20 shadow-[0_0_30px_rgba(6,182,212,0.1)] hover:shadow-[0_0_40px_rgba(6,182,212,0.2)]' : 'bg-white/80 border-slate-200 shadow-sm hover:shadow-md'}`}>
+          <div className="flex items-center gap-3">
+            <div className={`w-2 h-2 rounded-full ${auraCreditTime > 20 ? 'bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,1)] animate-pulse' : 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,1)] animate-pulse'}`} />
+            <span className={`text-xs font-bold tracking-widest uppercase ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+              <span className={`text-sm ${theme === 'dark' ? 'text-cyan-300' : 'text-slate-900'} mr-1.5`}>{Math.floor(auraCreditTime)}</span>
+              Time
+            </span>
+          </div>
+          <div className={`h-4 w-px ${theme === 'dark' ? 'bg-white/10' : 'bg-slate-300'}`} />
+          <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'}`}>{userTier}</span>
         </div>
 
-        {/* RIGHT: Minimalist Actions */}
-        <div className="flex items-center gap-2 md:gap-4">
+        {/* RIGHT: Actions - Premium Toolset */}
+        <div className="flex items-center gap-3 md:gap-4">
 
-          <div className="hidden lg:flex items-center gap-2">
-            {userTier !== 'designer' && (
-              <div className={`flex p-1 rounded-lg border ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-slate-100 border-slate-200'}`}>
-                {['standard', 'pro'].map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setModelMode(m as any)}
-                    className={`px-3 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all ${modelMode === m
-                      ? 'bg-cyan-500 text-white shadow-sm'
-                      : 'text-slate-500 hover:text-slate-300'
-                      }`}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Model Toggle */}
+          {userTier !== 'designer' && (
+            <div className="flex bg-black/30 border border-white/10 rounded-full p-1 backdrop-blur-md">
+              <button onClick={() => setModelMode('standard')} className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all duration-300 ${modelMode === 'standard' ? 'bg-white/15 text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}>Std</button>
+              <button onClick={() => setModelMode('pro')} className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all duration-300 ${modelMode === 'pro' ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/40' : 'text-slate-500 hover:text-white'}`}>Pro</button>
+            </div>
+          )}
 
-          <div className="flex items-center gap-1.5 md:gap-2">
-            {/* Veo - Action */}
+          {/* HERO ACTIONS GROUP */}
+          <div className="flex items-center gap-2">
+            {/* Veo Studio Button - Premium Glow */}
             <button
               onClick={() => { setVideoStartFrame(styleResult || null); setIsVideoStudioOpen(true); }}
-              className={`px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all border ${theme === 'dark'
-                ? 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/20'
-                : 'bg-cyan-50 border-cyan-100 text-cyan-700 hover:bg-cyan-100'
-                }`}
+              className="group relative px-4 md:px-5 py-2 md:py-2.5 rounded-xl overflow-hidden transition-all duration-300 hover:-translate-y-0.5"
             >
-              Veo
+              <div className={`absolute inset-0 transition-opacity duration-300 ${theme === 'dark' ? 'bg-cyan-500/10 group-hover:bg-cyan-500/20' : 'bg-cyan-50 group-hover:bg-cyan-100'}`} />
+              <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-r from-transparent via-cyan-400/10 to-transparent skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%]`} />
+              <div className={`relative flex items-center gap-2 ${theme === 'dark' ? 'text-cyan-300' : 'text-cyan-700'}`}>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                <span className="hidden md:inline text-[11px] font-bold uppercase tracking-widest">Veo</span>
+              </div>
+              <div className={`absolute inset-0 border rounded-xl opacity-20 pointer-events-none ${theme === 'dark' ? 'border-cyan-400' : 'border-cyan-600'}`} />
             </button>
 
-            {/* Forge/Recharge */}
+            {/* Recharge Button - Amber Gold Premium */}
             <button
               onClick={() => setShowUpgradeModal(true)}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white text-[11px] font-bold uppercase tracking-widest shadow-md hover:scale-105 active:scale-95 transition-all"
+              className="relative px-4 md:px-5 py-2 md:py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/20 hover:shadow-amber-500/40 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2 group"
             >
-              Forge
+              <svg className="w-4 h-4 transition-transform group-hover:rotate-180 duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+              <span className="hidden md:inline text-[11px] font-bold uppercase tracking-widest">Recharge</span>
             </button>
           </div>
 
           <div className={`h-6 w-px mx-1 ${theme === 'dark' ? 'bg-white/10' : 'bg-slate-200'}`} />
 
-          {/* Icon Console */}
-          <div className="flex items-center gap-0.5">
-            {[
-              { id: 'upload', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />, action: () => { }, isLabel: true },
-              { id: 'theme', icon: theme === 'dark' ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M16.243 17.657l.707.707M7.757 7.757l.707-.707M12 7a5 5 0 110 10 5 5 0 010-10z" /> : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />, action: toggleTheme },
-              { id: 'logout', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />, action: handleLogout }
-            ].map((btn) => (
-              btn.id === 'upload' ? (
-                referenceImage ? (
-                  <button key="clear" onClick={handleClearPhoto} className="p-2 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-colors" title="Clear">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                  </button>
-                ) : (
-                  <label key="upload" className={`p-2 rounded-lg cursor-pointer transition-colors ${theme === 'dark' ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`} title="Upload">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">{btn.icon}</svg>
-                    <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
-                  </label>
-                )
-              ) : (
-                <button
-                  key={btn.id}
-                  onClick={btn.action}
-                  className={`p-2 rounded-lg transition-colors ${btn.id === 'logout'
-                    ? 'text-slate-500 hover:text-rose-500 hover:bg-rose-500/5'
-                    : (theme === 'dark' ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50')
-                    }`}
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">{btn.icon}</svg>
-                </button>
-              )
-            ))}
+          {/* ICON TOOLS GROUP */}
+          <div className="flex items-center gap-1">
+            {/* Upload/Clear - Unified Icon Style */}
+            {referenceImage ? (
+              <button onClick={handleClearPhoto} className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all duration-300 border border-transparent hover:border-red-500/30" title="Clear Image">
+                <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2.001 16.138 21H7.862a2 2 0 01-1.995-1.858L5 7" /></svg>
+              </button>
+            ) : (
+              <label className={`w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-xl cursor-pointer transition-all duration-300 border ${theme === 'dark' ? 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10' : 'bg-white border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`} title="Upload Reference">
+                <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+              </label>
+            )}
 
-            {/* Admin Key */}
+            {/* Theme Toggle */}
+            <button onClick={toggleTheme} className={`w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-xl transition-all duration-300 border ${theme === 'dark' ? 'bg-white/5 border-white/10 text-yellow-500 hover:bg-white/10' : 'bg-white border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}>
+              {theme === 'dark' ? <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M16.243 17.657l.707.707M7.757 7.757l.707-.707M12 7a5 5 0 110 10 5 5 0 010-10z" /></svg> : <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>}
+            </button>
+
+            {/* Sign Out */}
+            <button onClick={handleLogout} className={`w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-xl transition-all duration-300 border border-transparent ${theme === 'dark' ? 'text-slate-500 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20' : 'text-slate-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200'}`} title="Sign Out">
+              <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+            </button>
+
+            {/* ADMIN BUTTON (Only show for Master Admin) */}
             {user?.email === 'auraassistantai@gmail.com' && (
-              <button onClick={() => setShowAdmin(true)} className="p-2 rounded-lg text-amber-500/80 hover:bg-amber-500/10 transition-colors">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
+              <button onClick={() => setShowAdmin(true)} className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-xl bg-red-500/10 border border-red-500/50 text-red-400 hover:bg-red-500 hover:text-white transition-all">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
               </button>
             )}
           </div>
+
         </div>
       </nav>
 
@@ -1725,53 +1700,49 @@ const App: React.FC = () => {
       {showAdmin && <AdminDashboard onClose={() => setShowAdmin(false)} />}
 
       {/* UPSCALE LOADING OVERLAY */}
-      {
-        isUpscaling && (
-          <div className="fixed inset-0 z-[10001] bg-black/80 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in duration-500">
-            <div className="relative w-24 h-24 mb-8">
-              <div className="absolute inset-0 border-t-4 border-cyan-500 rounded-full animate-spin"></div>
-              <div className="absolute inset-3 border-r-4 border-pink-500 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
-            </div>
-            <h2 className="text-2xl font-light tracking-[0.2em] text-white uppercase animate-pulse">Enhancing Masterpiece</h2>
-            <p className="text-cyan-400 text-xs tracking-widest mt-4 uppercase font-bold">Applying Nano-Banana Pro Intelligence...</p>
+      {isUpscaling && (
+        <div className="fixed inset-0 z-[10001] bg-black/80 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in duration-500">
+          <div className="relative w-24 h-24 mb-8">
+            <div className="absolute inset-0 border-t-4 border-cyan-500 rounded-full animate-spin"></div>
+            <div className="absolute inset-3 border-r-4 border-pink-500 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
           </div>
-        )
-      }
+          <h2 className="text-2xl font-light tracking-[0.2em] text-white uppercase animate-pulse">Enhancing Masterpiece</h2>
+          <p className="text-cyan-400 text-xs tracking-widest mt-4 uppercase font-bold">Applying Nano-Banana Pro Intelligence...</p>
+        </div>
+      )}
 
       {/* UPSCALE RESULT MODAL */}
-      {
-        showUpscaleModal && upscaleResult && (
-          <div className="fixed inset-0 z-[10000] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
-            <div className="relative w-full max-w-4xl max-h-[90vh] bg-[#0f172a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-              {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b border-white/5 bg-black/20">
-                <h3 className="text-white font-bold text-sm tracking-widest uppercase flex items-center gap-2">
-                  <span className="text-xl">✨</span> High-Res Upscale Complete
-                </h3>
-                <button onClick={() => setShowUpscaleModal(false)} className="p-2 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-colors">
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-              </div>
+      {showUpscaleModal && upscaleResult && (
+        <div className="fixed inset-0 z-[10000] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="relative w-full max-w-4xl max-h-[90vh] bg-[#0f172a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-white/5 bg-black/20">
+              <h3 className="text-white font-bold text-sm tracking-widest uppercase flex items-center gap-2">
+                <span className="text-xl">✨</span> High-Res Upscale Complete
+              </h3>
+              <button onClick={() => setShowUpscaleModal(false)} className="p-2 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-colors">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
 
-              {/* Image Content */}
-              <div className="flex-1 overflow-auto p-4 bg-[url('/grid.png')] bg-repeat flex items-center justify-center">
-                <img src={upscaleResult} alt="Upscaled Art" className="max-w-full max-h-[70vh] object-contain shadow-2xl rounded-lg" />
-              </div>
+            {/* Image Content */}
+            <div className="flex-1 overflow-auto p-4 bg-[url('/grid.png')] bg-repeat flex items-center justify-center">
+              <img src={upscaleResult} alt="Upscaled Art" className="max-w-full max-h-[70vh] object-contain shadow-2xl rounded-lg" />
+            </div>
 
-              {/* Actions */}
-              <div className="p-6 border-t border-white/5 bg-black/20 flex justify-end gap-4">
-                <button onClick={() => setShowUpscaleModal(false)} className="px-6 py-3 rounded-xl text-slate-400 font-bold uppercase text-xs tracking-widest hover:text-white hover:bg-white/5 transition-all">
-                  Discard
-                </button>
-                <button onClick={() => handleDownload(upscaleResult, 'image')} className="px-8 py-3 rounded-xl bg-cyan-500 text-white font-bold uppercase text-xs tracking-widest hover:bg-cyan-400 shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                  Download {userTier ? TIER_CONFIG[userTier].upscaleRes : '1K'} Result
-                </button>
-              </div>
+            {/* Actions */}
+            <div className="p-6 border-t border-white/5 bg-black/20 flex justify-end gap-4">
+              <button onClick={() => setShowUpscaleModal(false)} className="px-6 py-3 rounded-xl text-slate-400 font-bold uppercase text-xs tracking-widest hover:text-white hover:bg-white/5 transition-all">
+                Discard
+              </button>
+              <button onClick={() => handleDownload(upscaleResult, 'image')} className="px-8 py-3 rounded-xl bg-cyan-500 text-white font-bold uppercase text-xs tracking-widest hover:bg-cyan-400 shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                Download {userTier ? TIER_CONFIG[userTier].upscaleRes : '1K'} Result
+              </button>
             </div>
           </div>
-        )
-      }
+        </div>
+      )}
     </div >
   );
 };
