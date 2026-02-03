@@ -1032,16 +1032,17 @@ const App: React.FC = () => {
         </div>
 
         {/* CENTER: Economy Dashboard - Floating Glass Pill */}
-        <div className={`hidden md:flex items-center gap-6 rounded-full px-6 py-2.5 backdrop-blur-md border transition-all duration-300 transform hover:scale-105 ${theme === 'dark' ? 'bg-black/40 border-cyan-500/20 shadow-[0_0_30px_rgba(6,182,212,0.1)] hover:shadow-[0_0_40px_rgba(6,182,212,0.2)]' : 'bg-white/80 border-slate-200 shadow-sm hover:shadow-md'}`}>
-          <div className="flex items-center gap-3">
-            <div className={`w-2 h-2 rounded-full ${auraCreditTime > 20 ? 'bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,1)] animate-pulse' : 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,1)] animate-pulse'}`} />
-            <span className={`text-xs font-bold tracking-widest uppercase ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
-              <span className={`text-sm ${theme === 'dark' ? 'text-cyan-300' : 'text-slate-900'} mr-1.5`}>{Math.floor(auraCreditTime)}</span>
-              Time
+        {/* CENTER: Economy Dashboard - Floating Glass Pill */}
+        <div className={`flex items-center gap-3 md:gap-6 rounded-full px-3 py-1.5 md:px-6 md:py-2.5 backdrop-blur-md border transition-all duration-300 transform hover:scale-105 ${theme === 'dark' ? 'bg-black/40 border-cyan-500/20 shadow-[0_0_30px_rgba(6,182,212,0.1)] hover:shadow-[0_0_40px_rgba(6,182,212,0.2)]' : 'bg-white/80 border-slate-200 shadow-sm hover:shadow-md'}`}>
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${auraCreditTime > 20 ? 'bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,1)] animate-pulse' : 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,1)] animate-pulse'}`} />
+            <span className={`text-[10px] md:text-xs font-bold tracking-widest uppercase ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+              <span className={`text-xs md:text-sm ${theme === 'dark' ? 'text-cyan-300' : 'text-slate-900'} mr-1 md:mr-1.5`}>{Math.floor(auraCreditTime)}</span>
+              <span className="hidden md:inline">Time</span> <span className="md:hidden">m</span>
             </span>
           </div>
-          <div className={`h-4 w-px ${theme === 'dark' ? 'bg-white/10' : 'bg-slate-300'}`} />
-          <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'}`}>{userTier}</span>
+          <div className={`h-3 md:h-4 w-px ${theme === 'dark' ? 'bg-white/10' : 'bg-slate-300'}`} />
+          <span className={`text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] ${theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'}`}>{userTier}</span>
         </div>
 
         {/* RIGHT: Actions - Premium Toolset */}
