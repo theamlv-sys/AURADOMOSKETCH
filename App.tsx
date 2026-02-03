@@ -1011,7 +1011,7 @@ const App: React.FC = () => {
       )}
 
       {/* FUTURISTIC PREMIUM HEADER */}
-      <nav className={`h-16 md:h-20 flex items-center justify-between px-4 md:px-8 border-b transition-all duration-500 z-[100] flex-shrink-0 relative ${theme === 'dark' ? 'border-white/5 bg-[#050505]/80 backdrop-blur-2xl' : 'border-slate-200/60 bg-white/90 backdrop-blur-2xl shadow-sm'}`}>
+      <nav className={`h-14 md:h-16 flex items-center justify-between px-4 md:px-8 border-b transition-all duration-500 z-[100] flex-shrink-0 relative ${theme === 'dark' ? 'border-white/5 bg-[#050505]/80 backdrop-blur-2xl' : 'border-slate-200/60 bg-white/90 backdrop-blur-2xl shadow-sm'}`}>
 
         {/* LEFT: Logo + Menu */}
         <div className="flex items-center gap-4">
