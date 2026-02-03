@@ -11,6 +11,9 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
+console.log('[Startup] Primary Key:', process.env.GEMINI_API_KEY ? 'Set' : 'Missing');
+console.log('[Startup] Backup Key:', process.env.GEMINI_API_KEY_BACKUP ? 'Set' : 'Missing');
+
 
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -242,8 +245,7 @@ app.post('/api/generate-video', async (req, res) => {
                 },
                 config: {
                     aspectRatio: config.aspectRatio || '16:9',
-                    resolution: config.resolution || '720p',
-                    personGeneration: 'allow_adult'
+                    resolution: config.resolution || '720p'
                 }
             };
 
