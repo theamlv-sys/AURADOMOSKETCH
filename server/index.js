@@ -562,9 +562,15 @@ app.post('/api/verify-payment', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+// Export for Vercel (Serverless)
+export default app;
+
+// Only listen if not running in Vercel/Serverless environment
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+    });
+}
 
 // 6. Sync Credits (Securely update credits from client usage)
 app.post('/api/sync-credits', async (req, res) => {
