@@ -11,7 +11,7 @@ import AdminDashboard from './components/AdminDashboard'; // Import Admin Compon
 import { useCreditSystem } from './hooks/useCreditSystem';
 import { API_BASE_URL } from './config';
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+const stripePromise = loadStripe((import.meta as any).env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const STYLE_PRESETS: StylePreset[] = [
   { id: 'cartoon_mix', name: 'Cartoon Mix', prompt: 'STRICT_LOCKDOWN: ULTIMATE CARTOON HYBRID. Fusion of adult sci-fi thin-line precision (Rick and Morty style), iconic yellow-saturated skin tones (Simpsons style), and sharp urban anime aesthetics (Boondocks style). MANDATORY: Rendered with high-budget Pixar-quality 3D volumetric lighting, cinematic surface scattering, and perfectly smooth textures. FORBIDDEN: Any realism, photographic skin, or real-world human features.', thumbnail: '📺' },
@@ -283,7 +283,7 @@ const App: React.FC = () => {
         const stripe = await stripePromise;
         if (!stripe) throw new Error('Stripe JS not loaded. Check your Internet or AdBlock.');
 
-        const { error } = await stripe.redirectToCheckout({ sessionId: id });
+        const { error } = await (stripe as any).redirectToCheckout({ sessionId: id });
         if (error) throw error;
       } else {
         throw new Error('No Session ID returned');
