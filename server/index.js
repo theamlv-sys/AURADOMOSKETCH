@@ -337,21 +337,25 @@ app.post('/api/generate-video', async (req, res) => {
             const errStr = (JSON.stringify(err) + err.message).toLowerCase();
             console.log(`[Video] Caught error on attempt ${i + 1}:`, errStr);
 
-            const isQuotaError = errStr.includes('429') ||
+            const isRetriable = errStr.includes('429') ||
                 errStr.includes('quota') ||
                 errStr.includes('resource_exhausted') ||
-                errStr.includes('limit');
+                errStr.includes('limit') ||
+                errStr.includes('403') ||
+                errStr.includes('leaked') ||
+                errStr.includes('permission_denied');
 
-            if (isQuotaError && i < apiKeys.length - 1) {
-                console.warn(`[Video] Key ${i + 1} hit quota. Failover to key ${i + 2}.`);
+            if (isRetriable && i < apiKeys.length - 1) {
+                console.warn(`[Video] Key ${i + 1} hit error (Quota or Leak). Trying backup...`);
                 lastError = err;
                 continue;
             }
 
             console.error(`[Video] Final fail on key ${i + 1}:`, err);
-            return res.status(isQuotaError ? 429 : 500).json({
+            const status = isRetriable ? 429 : 500;
+            return res.status(status).json({
                 error: err.message || "Synthesis error",
-                details: isQuotaError ? "All keys exhausted." : "Fatal error."
+                details: isRetriable ? "All available keys hit quota or were disabled." : "Fatal error."
             });
         }
     }

@@ -1,5 +1,10 @@
 node_modules/
 .env
+server/.env
 .DS_Store
 dist/
+*.rtf
+test_*.js
+test_keys.js
+test_failover.js
 
