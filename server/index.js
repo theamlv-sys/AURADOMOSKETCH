@@ -11,8 +11,11 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
-console.log('[Startup] Primary Key:', process.env.GEMINI_API_KEY ? 'Set' : 'Missing');
-console.log('[Startup] Backup Key:', process.env.GEMINI_API_KEY_BACKUP ? 'Set' : 'Missing');
+console.log('[Startup] Status Check:', {
+    hasPrimaryKey: !!process.env.GEMINI_API_KEY,
+    hasBackupKey: !!process.env.GEMINI_API_KEY_BACKUP,
+    env: process.env.NODE_ENV
+});
 
 
 // Initialize Stripe
