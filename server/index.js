@@ -217,107 +217,154 @@ app.post('/api/admin/update-credits', async (req, res) => {
     }
 });
 
-// 2. Generate Video (Veo 3.1)
+// 2. Generate Video (Veo 3.1) with API Failover
 app.post('/api/generate-video', async (req, res) => {
-    try {
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-        const { config } = req.body;
+    const apiKeys = [
+        process.env.GEMINI_API_KEY,
+        process.env.GEMINI_API_KEY_BACKUP
+    ].filter(Boolean);
 
-        const videoParams = {
-            model: config.model || 'veo-3.1-fast-generate-preview',
-            source: {
-                prompt: config.prompt || 'Cinematic movement',
-            },
-            config: {
-                aspectRatio: config.aspectRatio || '16:9',
-                resolution: config.resolution || '720p',
-                personGeneration: 'allow_adult' // Enable more creative freedom as per Veo 3.1 docs
-            }
-        };
+    console.log(`[Video] SYSTEM: Detected ${apiKeys.length} API keys in environment.`);
+    let lastError = null;
 
-        if (config.startingImage) {
-            videoParams.source.image = {
-                imageBytes: config.startingImage.split(',')[1],
-                mimeType: 'image/jpeg'
-            };
-        }
+    for (let i = 0; i < apiKeys.length; i++) {
+        const currentKey = apiKeys[i];
+        console.log(`[Video] Attempt ${i + 1} using key: ${currentKey.slice(0, 8)}...`);
 
-        if (config.endingImage) {
-            videoParams.config.lastFrame = {
-                imageBytes: config.endingImage.split(',')[1],
-                mimeType: 'image/jpeg'
-            };
-        }
+        try {
+            const ai = new GoogleGenAI({ apiKey: currentKey });
+            const { config } = req.body;
 
-        // Map ingredients to reference images for Image-based direction
-        if (config.ingredients && Array.isArray(config.ingredients) && config.ingredients.length > 0) {
-            videoParams.config.referenceImages = config.ingredients.map(imgData => ({
-                image: {
-                    imageBytes: imgData.split(',')[1],
-                    mimeType: 'image/jpeg'
+            const videoParams = {
+                model: config.model || 'veo-3.1-fast-generate-preview',
+                source: {
+                    prompt: config.prompt || 'Cinematic movement',
                 },
-                referenceType: 'asset' // Default to asset for character/object consistency
-            }));
-        }
+                config: {
+                    aspectRatio: config.aspectRatio || '16:9',
+                    resolution: config.resolution || '720p',
+                    personGeneration: 'allow_adult'
+                }
+            };
 
-        // 1. Kick off the generation
-        let operation = await ai.models.generateVideos(videoParams);
-
-        // 2. Poll for completion
-        let attempts = 0;
-        const maxAttempts = 30; // 30 * 5s = 150s (2.5 mins)
-
-        while (!operation.done && attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 5000));
-            operation = await ai.operations.getVideosOperation({ operation });
-            attempts++;
-            console.log(`Video generation progress: ${attempts}/${maxAttempts}`);
-        }
-
-        if (operation.done && operation.response?.generatedVideos?.[0]?.video) {
-            const video = operation.response.generatedVideos[0].video;
-            // Video object validation passed
-
-            if (video.videoBytes) {
-                return res.json({
-                    videoBase64: video.videoBytes,
-                    mimeType: video.mimeType || 'video/mp4'
-                });
+            if (config.startingImage) {
+                videoParams.source.image = {
+                    imageBytes: config.startingImage.split(',')[1],
+                    mimeType: 'image/jpeg'
+                };
             }
 
-            if (video.uri) {
-                console.log('Fetching video from URI:', video.uri);
-                try {
-                    // The URI is a protected Google Cloud Storage resource, so we need to pass the API key
-                    const response = await fetch(video.uri, {
-                        headers: {
-                            'x-goog-api-key': process.env.GEMINI_API_KEY
-                        }
+            if (config.endingImage) {
+                videoParams.config.lastFrame = {
+                    imageBytes: config.endingImage.split(',')[1],
+                    mimeType: 'image/jpeg'
+                };
+            }
+
+            if (config.ingredients && Array.isArray(config.ingredients) && config.ingredients.length > 0) {
+                videoParams.config.referenceImages = config.ingredients.map(imgData => ({
+                    image: {
+                        imageBytes: imgData.split(',')[1],
+                        mimeType: 'image/jpeg'
+                    },
+                    referenceType: 'asset'
+                }));
+            }
+
+            // 1. Kick off the generation
+            let operation = await ai.models.generateVideos(videoParams);
+
+            // 2. Poll for completion
+            let attempts = 0;
+            const maxAttempts = 30;
+
+            while (!operation.done && attempts < maxAttempts) {
+                await new Promise(resolve => setTimeout(resolve, 5000));
+                operation = await ai.operations.getVideosOperation({ operation });
+                attempts++;
+                console.log(`Video generation progress: ${attempts}/${maxAttempts}`);
+            }
+
+            if (operation.done && operation.response?.generatedVideos?.[0]?.video) {
+                const video = operation.response.generatedVideos[0].video;
+
+                if (video.videoBytes) {
+                    return res.json({
+                        videoBase64: video.videoBytes,
+                        mimeType: video.mimeType || 'video/mp4'
                     });
-                    if (!response.ok) throw new Error(`Failed to fetch video: ${response.status} ${response.statusText}`);
+                }
+
+                if (video.uri) {
+                    console.log('Fetching video from URI:', video.uri);
+                    const response = await fetch(video.uri, {
+                        headers: { 'x-goog-api-key': currentKey }
+                    });
+
+                    if (!response.ok) {
+                        if (response.status === 429 && i < apiKeys.length - 1) {
+                            console.warn(`[Video] Fetch failed with 429 on key ${i + 1}. Trying next key.`);
+                            continue; // Fallback to next key
+                        }
+                        throw new Error(`Failed to fetch video: ${response.status} ${response.statusText}`);
+                    }
+
                     const arrayBuffer = await response.arrayBuffer();
                     const base64 = Buffer.from(arrayBuffer).toString('base64');
-
-                    console.log('Video fetched and encoded. Length:', base64.length);
-
                     return res.json({
                         videoBase64: base64,
                         mimeType: video.mimeType || 'video/mp4'
                     });
-                } catch (fetchErr) {
-                    console.error('Error fetching video from URI:', fetchErr);
-                    throw fetchErr;
                 }
             }
+
+            if (operation.error) {
+                const isQuotaError = operation.error.code === 429 ||
+                    (operation.error.message && operation.error.message.includes('quota'));
+
+                if (isQuotaError && i < apiKeys.length - 1) {
+                    console.warn(`[Video] Generation failed with quota error on key ${i + 1}. Trying next key.`);
+                    continue;
+                }
+                throw new Error(operation.error.message);
+            }
+
+            throw new Error("Video generation timed out or failed to produce a valid video object.");
+
+        } catch (err) {
+            // Robust check for quota errors in various formats (SDK, HTTP, or custom)
+            console.log(`[Video] Caught error object on attempt ${i + 1}:`, JSON.stringify(err, null, 2) || err.message || err);
+
+            const errCode = err.code || err.status || (err.error && err.error.code);
+            const errMsg = (err.message || "").toLowerCase();
+            const errStatusStr = (err.status || "").toString();
+
+            const isQuotaError = errCode === 429 ||
+                errCode === "429" ||
+                errStatusStr === "429" ||
+                errMsg.includes('quota') ||
+                errMsg.includes('resource_exhausted') ||
+                errMsg.includes('exceeded your current quota');
+
+            if (isQuotaError && i < apiKeys.length - 1) {
+                console.warn(`[Video] CRITICAL: Key ${i + 1} hit quota. RE-ROUTING TO KEY ${i + 2}.`);
+                lastError = err;
+                continue;
+            }
+
+            console.error(`[Video] FINAL FAILURE on key ${i + 1}:`, err);
+            return res.status(isQuotaError ? 429 : 500).json({
+                error: err.message || "Unknown synthesis error",
+                code: errCode
+            });
         }
-
-        console.log('Operation Status:', JSON.stringify(operation, null, 2));
-        throw new Error(operation.error?.message || "Video generation timed out or failed to produce a valid video object.");
-
-    } catch (err) {
-        console.error('Video Generation Error:', err);
-        return res.status(500).json({ error: err.message });
     }
+
+    // If we exhausted all keys
+    return res.status(429).json({
+        error: "All Video API keys have exhausted their quotas. Please try again later.",
+        details: lastError?.message
+    });
 });
 
 // 3. Download Endpoint - Forces correct filename with HTTP headers
