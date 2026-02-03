@@ -334,35 +334,28 @@ app.post('/api/generate-video', async (req, res) => {
             throw new Error("Video generation timed out or failed to produce a valid video object.");
 
         } catch (err) {
-            // Robust check for quota errors in various formats (SDK, HTTP, or custom)
-            console.log(`[Video] Caught error object on attempt ${i + 1}:`, JSON.stringify(err, null, 2) || err.message || err);
+            const errStr = (JSON.stringify(err) + err.message).toLowerCase();
+            console.log(`[Video] Caught error on attempt ${i + 1}:`, errStr);
 
-            const errCode = err.code || err.status || (err.error && err.error.code);
-            const errMsg = (err.message || "").toLowerCase();
-            const errStatusStr = (err.status || "").toString();
-
-            const isQuotaError = errCode === 429 ||
-                errCode === "429" ||
-                errStatusStr === "429" ||
-                errMsg.includes('quota') ||
-                errMsg.includes('resource_exhausted') ||
-                errMsg.includes('exceeded your current quota');
+            const isQuotaError = errStr.includes('429') ||
+                errStr.includes('quota') ||
+                errStr.includes('resource_exhausted') ||
+                errStr.includes('limit');
 
             if (isQuotaError && i < apiKeys.length - 1) {
-                console.warn(`[Video] CRITICAL: Key ${i + 1} hit quota. RE-ROUTING TO KEY ${i + 2}.`);
+                console.warn(`[Video] Key ${i + 1} hit quota. Failover to key ${i + 2}.`);
                 lastError = err;
                 continue;
             }
 
-            console.error(`[Video] FINAL FAILURE on key ${i + 1}:`, err);
+            console.error(`[Video] Final fail on key ${i + 1}:`, err);
             return res.status(isQuotaError ? 429 : 500).json({
-                error: err.message || "Unknown synthesis error",
-                code: errCode
+                error: err.message || "Synthesis error",
+                details: isQuotaError ? "All keys exhausted." : "Fatal error."
             });
         }
     }
 
-    // If we exhausted all keys
     return res.status(429).json({
         error: "All Video API keys have exhausted their quotas. Please try again later.",
         details: lastError?.message
