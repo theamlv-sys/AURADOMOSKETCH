@@ -819,7 +819,7 @@ const App: React.FC = () => {
         outputResolution: tierSettings.upscaleRes
       };
 
-      const result = await generateArtFromSketch(sourceImage, config);
+      const result = await generateArtFromSketch("", config);
 
       if (result) {
         setUpscaleResult(result);

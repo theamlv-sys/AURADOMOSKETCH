@@ -95,7 +95,10 @@ NEGATIVE CONSTRAINTS: ${config.negativePrompt || ''}, low resolution, artifacts,
         contents.push({ text: finalPrompt });
 
         // IMPORTANT: Add reference image FIRST, then sketch overlay
-        // This order helps the AI understand: "base image" + "drawn additions"
+        // If they are the same (like in Upscale), only add one to save bandwidth and prevent confusion
+        const isSameImage = config.referenceImage && sketchBase64 &&
+            config.referenceImage.substring(0, 100) === sketchBase64.substring(0, 100);
+
         if (config.referenceImage) {
             const refData = config.referenceImage.split(',')[1];
             contents.push({
@@ -106,8 +109,8 @@ NEGATIVE CONSTRAINTS: ${config.negativePrompt || ''}, low resolution, artifacts,
             });
         }
 
-        // Add the sketch/canvas image as the overlay/modification layer
-        if (sketchBase64) {
+        // Add the sketch image only if it's different from the reference
+        if (sketchBase64 && !isSameImage) {
             const sketchData = sketchBase64.split(',')[1];
             contents.push({
                 inlineData: {
