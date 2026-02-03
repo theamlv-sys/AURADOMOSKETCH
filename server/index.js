@@ -228,14 +228,14 @@ app.post('/api/generate-video', async (req, res) => {
     const apiKeys = [
         process.env.GEMINI_API_KEY,
         process.env.GEMINI_API_KEY_BACKUP
-    ].filter(Boolean);
+    ].filter(k => k && k.trim().length > 0);
 
-    console.log(`[Video] SYSTEM: Detected ${apiKeys.length} API keys in environment.`);
+    console.log(`[Video] SYSTEM: Active keys: ${apiKeys.length}`);
     let lastError = null;
 
     for (let i = 0; i < apiKeys.length; i++) {
         const currentKey = apiKeys[i];
-        console.log(`[Video] Attempt ${i + 1} using key: ${currentKey.slice(0, 8)}...`);
+        console.log(`[Video] Attempt ${i + 1}/${apiKeys.length} | Key: ${currentKey.slice(0, 6)}...${currentKey.slice(-4)}`);
 
         try {
             const ai = new GoogleGenAI({ apiKey: currentKey });
@@ -337,35 +337,54 @@ app.post('/api/generate-video', async (req, res) => {
             throw new Error("Video generation timed out or failed to produce a valid video object.");
 
         } catch (err) {
-            const errStr = (JSON.stringify(err) + err.message).toLowerCase();
-            console.log(`[Video] Caught error on attempt ${i + 1}:`, errStr);
+            // Robust error extraction
+            const errCode = err.status || err.code || (err.response && err.response.status);
+            const errMsg = err.message || "";
+            const errDetails = JSON.stringify(err);
+            const errStr = (errMsg + errDetails).toLowerCase();
 
-            const isRetriable = errStr.includes('429') ||
+            console.error(`[Video] Error on attempt ${i + 1}:`, { code: errCode, msg: errMsg });
+
+            const isRetriable =
+                errCode === 429 ||
+                errCode === 403 ||
+                errStr.includes('429') ||
+                errStr.includes('403') ||
                 errStr.includes('quota') ||
                 errStr.includes('resource_exhausted') ||
                 errStr.includes('limit') ||
-                errStr.includes('403') ||
-                errStr.includes('leaked') ||
-                errStr.includes('permission_denied');
+                errStr.includes('permission') ||
+                errStr.includes('safety');
 
             if (isRetriable && i < apiKeys.length - 1) {
-                console.warn(`[Video] Key ${i + 1} hit error (Quota or Leak). Trying backup...`);
+                console.warn(`[Video] Key ${i + 1} failed (retriable). Rotating to next key...`);
                 lastError = err;
                 continue;
             }
 
-            console.error(`[Video] Final fail on key ${i + 1}:`, err);
-            const status = isRetriable ? 429 : 500;
-            return res.status(status).json({
-                error: err.message || "Synthesis error",
-                details: isRetriable ? "All available keys hit quota or were disabled." : "Fatal error."
+            console.error(`[Video] Final failure on key ${i + 1}.`, err);
+            return res.status(errCode || 500).json({
+                error: errMsg || "Video synthesis failed",
+                details: isRetriable ? "All API keys exhausted or blocked." : "Technical error during synthesis.",
+                code: errCode
             });
         }
     }
 
     return res.status(429).json({
-        error: "All Video API keys have exhausted their quotas. Please try again later.",
-        details: lastError?.message
+        error: "Quota reached on all available video generation keys.",
+        details: lastError?.message || "Please upgrade or try again later."
+    });
+});
+
+// Diagnostic endpoint to check if keys are loaded in production
+app.get('/api/debug-status', (req, res) => {
+    res.json({
+        primary: !!process.env.GEMINI_API_KEY ? 'Loaded' : 'MISSING',
+        backup: !!process.env.GEMINI_API_KEY_BACKUP ? 'Loaded' : 'MISSING',
+        primaryPrefix: process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.slice(0, 4) : 'N/A',
+        nodeEnv: process.env.NODE_ENV,
+        port: PORT
     });
 });
 
