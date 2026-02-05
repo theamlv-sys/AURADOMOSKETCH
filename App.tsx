@@ -9,6 +9,7 @@ import { User } from '@supabase/supabase-js';
 import { loadStripe } from '@stripe/stripe-js';
 import AdminDashboard from './components/AdminDashboard'; // Import Admin Component
 import { useCreditSystem } from './hooks/useCreditSystem';
+import { useInactivityTimer } from './hooks/useInactivityTimer';
 import { API_BASE_URL } from './config';
 
 const stripePromise = loadStripe((import.meta as any).env.VITE_STRIPE_PUBLISHABLE_KEY);
@@ -102,6 +103,33 @@ const App: React.FC = () => {
   // REBUILT CREDIT SYSTEM HOOK
   const { credits: auraCreditTime, startBurn, stopBurn, deduct, forceSave, isLoaded } = useCreditSystem(user, userTier as string);
 
+  const [isRealTimePaused, setIsRealTimePaused] = useState(true); // Default to PAUSED
+
+  // INACTIVITY TIMER & MODAL
+  const [showInactivityModal, setShowInactivityModal] = useState(false);
+  const { isInactive, reset: resetInactivity } = useInactivityTimer(300000); // 5 Minutes
+
+  useEffect(() => {
+    if (isInactive && !isRealTimePaused) {
+      setIsRealTimePaused(true);
+      setShowInactivityModal(true);
+    }
+  }, [isInactive, isRealTimePaused]);
+
+  // PERSISTENCE STATE
+  const [savedSketch, setSavedSketch] = useState<string | null>(null);
+
+  // Restore Sketch on Load (One-time check)
+  useEffect(() => {
+    const saved = localStorage.getItem('aura_sketch_backup');
+    if (saved) {
+      setSavedSketch(saved);
+      currentSketchRef.current = saved;
+    }
+  }, []);
+
+
+
   // AUTO-RESTORE REMOVED PER USER REQUEST: Credits should burn to 0 naturally.
   // Master Admin can use the recharge button or manual dashboard tools if needed.
 
@@ -186,7 +214,8 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // New Mobile Menu State
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isRealTimePaused, setIsRealTimePaused] = useState(true); // Default to PAUSED
+
+
 
   // Tool Suite Toggle State
   const [isSuiteMinimized, setIsSuiteMinimized] = useState(false);
@@ -702,10 +731,12 @@ const App: React.FC = () => {
   // Triggered when user lifts mouse/finger (Final high-quality render)
   const onStrokeEnd = useCallback((sketchData: string) => {
     currentSketchRef.current = sketchData;
+    localStorage.setItem('aura_sketch_backup', sketchData); // Save to local storage
     if (!isRealTimePaused) {
       handleGenerate(sketchData);
     }
-  }, [handleGenerate, isRealTimePaused]);
+    resetInactivity(); // User is active
+  }, [handleGenerate, isRealTimePaused, resetInactivity]);
 
   // Triggered while drawing (Throttled real-time preview)
   const onRealTimeUpdate = useCallback((sketchData: string) => {
@@ -1011,6 +1042,20 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {/* INACTIVITY PAUSE MODAL */}
+      {showInactivityModal && (
+        <div className="fixed inset-0 z-[1000] bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className="bg-[#111] border border-white/10 p-8 rounded-3xl max-w-sm w-full text-center shadow-2xl">
+            <div className="w-16 h-16 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center mx-auto mb-6">
+              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </div>
+            <h3 className="text-xl font-black uppercase italic text-white mb-2">Still Creating?</h3>
+            <p className="text-slate-400 text-xs mb-8 leading-relaxed">AI generation was paused to preserve your credits during inactivity.</p>
+            <button onClick={() => { setShowInactivityModal(false); setIsRealTimePaused(false); resetInactivity(); }} className="w-full py-3.5 bg-cyan-500 hover:bg-cyan-400 text-white rounded-xl font-bold uppercase tracking-widest text-xs transition-all shadow-lg shadow-cyan-500/20">Resume Creativity</button>
+          </div>
+        </div>
+      )}
+
       {/* FUTURISTIC PREMIUM HEADER */}
       <nav className={`h-14 md:h-16 flex items-center justify-between px-4 md:px-8 border-b transition-all duration-500 z-[100] flex-shrink-0 relative ${theme === 'dark' ? 'border-white/5 bg-[#050505]/80 backdrop-blur-2xl' : 'border-slate-200/60 bg-white/90 backdrop-blur-2xl shadow-sm'}`}>
 
@@ -1279,6 +1324,7 @@ const App: React.FC = () => {
                     offset={viewState.offset}
                     onTransformChange={(s, o) => setViewState({ scale: s, offset: o })}
                     backgroundImage={referenceImage}
+                    initialData={savedSketch}
                   />
                 </div>
 

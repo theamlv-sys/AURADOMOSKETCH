@@ -3,6 +3,7 @@ import React, { useRef, useEffect, useCallback, useImperativeHandle, forwardRef 
 
 export interface DrawingCanvasRef {
   clear: () => void;
+  load: (dataUrl: string) => void;
 }
 
 interface DrawingCanvasProps {
@@ -16,6 +17,7 @@ interface DrawingCanvasProps {
   offset: { x: number; y: number };
   onTransformChange: (scale: number, offset: { x: number; y: number }) => void;
   backgroundImage?: string | null;
+  initialData?: string | null;
 }
 
 const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
@@ -28,7 +30,8 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   scale,
   offset,
   onTransformChange,
-  backgroundImage
+  backgroundImage,
+  initialData
 }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -79,8 +82,21 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     }
   };
 
+  const load = (dataUrl: string) => {
+    const ctx = getCtx();
+    if (ctx && canvasRef.current) {
+      const img = new Image();
+      img.onload = () => {
+        ctx.clearRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
+        ctx.drawImage(img, 0, 0, canvasRef.current!.width, canvasRef.current!.height);
+      };
+      img.src = dataUrl;
+    }
+  };
+
   useImperativeHandle(ref, () => ({
-    clear: clearAll
+    clear: clearAll,
+    load
   }));
 
   const setupCanvases = useCallback(() => {
@@ -116,6 +132,20 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       window.removeEventListener('keyup', handleKeyUp);
     };
   }, [setupCanvases]);
+
+  useEffect(() => {
+    if (initialData && canvasRef.current) {
+      const ctx = getCtx();
+      if (ctx) {
+        const img = new Image();
+        img.onload = () => {
+          ctx.clearRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
+          ctx.drawImage(img, 0, 0, canvasRef.current!.width, canvasRef.current!.height);
+        };
+        img.src = initialData;
+      }
+    }
+  }, [initialData, setupCanvases]); // Setup must be done first
 
   const getCoords = (e: MouseEvent | TouchEvent) => {
     const canvas = canvasRef.current;
