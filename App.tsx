@@ -139,6 +139,10 @@ const App: React.FC = () => {
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchUserProfile(session.user.id);
+        // Clean URL hash
+        if (window.location.hash) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
       } else {
         setIsProfileLoading(false);
       }
@@ -151,7 +155,13 @@ const App: React.FC = () => {
       setUser(session?.user ?? null);
       if (session?.user) {
         // If logging in, keep loading true
-        if (_event === 'SIGNED_IN') setIsProfileLoading(true);
+        if (_event === 'SIGNED_IN') {
+          setIsProfileLoading(true);
+          // Clean URL hash immediately on sign in
+          if (window.location.hash) {
+            window.history.replaceState(null, '', window.location.pathname);
+          }
+        }
         fetchUserProfile(session.user.id);
       } else {
         setIsProfileLoading(false);
