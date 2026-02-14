@@ -213,6 +213,7 @@ const App: React.FC = () => {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // New Mobile Menu State
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false); // New Profile Dropdown State
   const [isExpanded, setIsExpanded] = useState(false);
 
 
@@ -1149,18 +1150,99 @@ const App: React.FC = () => {
               {theme === 'dark' ? <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M16.243 17.657l.707.707M7.757 7.757l.707-.707M12 7a5 5 0 110 10 5 5 0 010-10z" /></svg> : <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>}
             </button>
 
-            {/* Sign Out */}
-            <button onClick={handleLogout} className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-300 border border-transparent ${theme === 'dark' ? 'text-slate-500 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20' : 'text-slate-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200'}`} title="Sign Out">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+          </div>
+
+          {/* User Profile & Menu Dropdown (Desktop) */}
+          <div className="hidden md:block relative z-[200]">
+            <button
+              onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+              className={`flex items-center gap-3 pl-1 pr-4 py-1 rounded-full border transition-all duration-300 group ${theme === 'dark' ? 'bg-white/5 border-white/10 hover:border-cyan-500/50 hover:bg-white/10' : 'bg-white border-slate-200 hover:border-cyan-500/50 shadow-sm'}`}
+            >
+              <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
+                {user?.user_metadata?.avatar_url ? (
+                  <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <div className={`w-full h-full flex items-center justify-center font-bold text-xs ${theme === 'dark' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                    {user?.email?.[0].toUpperCase() || 'U'}
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col items-start leading-none">
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-300 group-hover:text-white' : 'text-slate-600 group-hover:text-slate-900'}`}>Menu</span>
+                <span className={`text-[8px] font-medium ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>& Settings</span>
+              </div>
+              <svg className={`w-3 h-3 transition-transform duration-300 ${isProfileMenuOpen ? 'rotate-180' : ''} ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
             </button>
 
-            {/* ADMIN BUTTON (Desktop) */}
-            {user?.email === 'auraassistantai@gmail.com' && (
-              <button onClick={() => setShowAdmin(true)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-red-500/10 border border-red-500/50 text-red-400 hover:bg-red-500 hover:text-white transition-all">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
-              </button>
+            {/* Dropdown Menu */}
+            {isProfileMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-[190]" onClick={() => setIsProfileMenuOpen(false)} />
+                <div className={`absolute right-0 top-full mt-3 w-64 rounded-2xl border p-2 shadow-2xl z-[200] animate-in fade-in slide-in-from-top-2 duration-200 flex flex-col gap-1 ${theme === 'dark' ? 'bg-[#0a0a0a] border-white/10' : 'bg-white border-slate-200'}`}>
+
+                  <div className={`p-3 rounded-xl border mb-1 flex items-center gap-3 ${theme === 'dark' ? 'bg-white/5 border-white/5' : 'bg-slate-50 border-slate-100'}`}>
+                    <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                      {user?.user_metadata?.avatar_url ? (
+                        <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className={`w-full h-full flex items-center justify-center font-bold text-sm ${theme === 'dark' ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                          {user?.email?.[0].toUpperCase() || 'U'}
+                        </div>
+                      )}
+                    </div>
+                    <div className="overflow-hidden">
+                      <p className={`text-xs font-bold truncate ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{user?.user_metadata?.full_name || 'User'}</p>
+                      <p className={`text-[10px] truncate ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>{user?.email}</p>
+                    </div>
+                  </div>
+
+                  {/* Upload (Added) */}
+                  <label className={`flex items-center gap-3 px-3 py-2 text-[11px] font-medium rounded-lg transition-colors cursor-pointer group ${theme === 'dark' ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}>
+                    <svg className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                    Upload Photo
+                    <input type="file" accept="image/*" onChange={(e) => { handleFileUpload(e); setIsProfileMenuOpen(false); }} className="hidden" />
+                  </label>
+
+                  {/* Theme Toggle (Added) */}
+                  <button onClick={() => { toggleTheme(); setIsProfileMenuOpen(false); }} className={`w-full text-left flex items-center gap-3 px-3 py-2 text-[11px] font-medium rounded-lg transition-colors group ${theme === 'dark' ? 'text-slate-400 hover:text-yellow-400 hover:bg-white/5' : 'text-slate-500 hover:text-yellow-600 hover:bg-slate-50'}`}>
+                    {theme === 'dark' ? <svg className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M16.243 17.657l.707.707M7.757 7.757l.707-.707M12 7a5 5 0 110 10 5 5 0 010-10z" /></svg> : <svg className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>}
+                    {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                  </button>
+
+                  <div className={`h-px my-1 ${theme === 'dark' ? 'bg-white/5' : 'bg-slate-100'}`} />
+
+                  {user?.email === 'auraassistantai@gmail.com' && (
+                    <button onClick={() => { setShowAdmin(true); setIsProfileMenuOpen(false); }} className={`w-full text-left px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-colors flex items-center gap-2 ${theme === 'dark' ? 'text-amber-500 hover:bg-amber-500/10' : 'text-amber-600 hover:bg-amber-50'}`}>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
+                      Admin Dashboard
+                    </button>
+                  )}
+
+                  <div className={`h-px my-1 ${theme === 'dark' ? 'bg-white/5' : 'bg-slate-100'}`} />
+
+                  <a href="/privacy-policy" target="_blank" className={`block w-full text-left px-3 py-2 text-[11px] font-medium rounded-lg transition-colors flex items-center gap-2 group ${theme === 'dark' ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}>
+                    <svg className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    Privacy Policy
+                  </a>
+                  <a href="/terms-of-service" target="_blank" className={`block w-full text-left px-3 py-2 text-[11px] font-medium rounded-lg transition-colors flex items-center gap-2 group ${theme === 'dark' ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}>
+                    <svg className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" /></svg>
+                    Terms of Service
+                  </a>
+
+                  <div className={`h-px my-1 ${theme === 'dark' ? 'bg-white/5' : 'bg-slate-100'}`} />
+
+                  <button onClick={handleLogout} className="w-full text-left px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-red-400 hover:bg-red-500/10 rounded-lg transition-colors flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                    Sign Out
+                  </button>
+                </div>
+              </>
             )}
           </div>
+
+        </div>
+
+        <div className="md:hidden">
 
           {/* MOBILE MENU TOGGLE */}
           <div className="md:hidden relative">
@@ -1197,6 +1279,18 @@ const App: React.FC = () => {
                       Admin Panel
                     </button>
                   )}
+
+                  <div className={`h-px w-full my-1 ${theme === 'dark' ? 'bg-white/10' : 'bg-slate-100'}`} />
+
+                  {/* Legal Links (Added) */}
+                  <a href="/privacy-policy" target="_blank" className={`flex items-center gap-3 px-4 py-3 rounded-lg text-xs font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-slate-400 hover:bg-white/5 hover:text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    Privacy Policy
+                  </a>
+                  <a href="/terms-of-service" target="_blank" className={`flex items-center gap-3 px-4 py-3 rounded-lg text-xs font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-slate-400 hover:bg-white/5 hover:text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" /></svg>
+                    Terms of Service
+                  </a>
 
                   <div className={`h-px w-full my-1 ${theme === 'dark' ? 'bg-white/10' : 'bg-slate-100'}`} />
 
