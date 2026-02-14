@@ -287,6 +287,11 @@ const App: React.FC = () => {
       return;
     }
 
+    if (tier === 'visitor') {
+      setUserTier('visitor');
+      return;
+    }
+
     setLoading(true);
     try {
       console.log('Initiating checkout for:', tier);
@@ -449,7 +454,10 @@ const App: React.FC = () => {
   };
 
   const handleGenerateVideo = async () => {
-    if (!userTier) return;
+    if (!userTier || userTier === 'visitor') {
+      if (userTier === 'visitor') alert("Video tools are disabled in Visitor Mode.");
+      return;
+    }
 
     // SAFETY: Force 4K down to 1080p for stability (User requested deletion of 4K)
     // Even if state says 4K, we send 1080p.
@@ -648,8 +656,8 @@ const App: React.FC = () => {
     const effectiveSketch = sketchData || currentSketchRef.current || "";
     if (!effectiveSketch && !referenceImage) return;
 
-    // Safety: If paused or out of credit time, do NOT generate
-    if ((isRealTimePaused && !ignorePaused) || auraCreditTime <= 0) return;
+    // Safety: If paused or out of credit time, or visitor, do NOT generate
+    if ((isRealTimePaused && !ignorePaused) || auraCreditTime <= 0 || userTier === 'visitor') return;
 
     // Rate Limiting (Double check to prevent spam)
     const now = Date.now();
@@ -748,6 +756,10 @@ const App: React.FC = () => {
   }, [handleGenerate, isRealTimePaused]);
 
   const toggleRealTime = () => {
+    if (userTier === 'visitor') {
+      alert("AI Real-time generation is disabled in Visitor Mode.");
+      return;
+    }
     if (auraCreditTime <= 0) {
       setShowUpgradeModal(true);
       return;
@@ -924,9 +936,12 @@ const App: React.FC = () => {
               </svg>
               Sign in with Google
             </button>
-            <p className="text-slate-600 text-[10px] text-center">
-              By entering, you agree to our Terms of Service.
-            </p>
+            <div className="text-slate-600 text-[10px] text-center space-x-1">
+              <span>By entering, you agree to our</span>
+              <a href="/terms-of-service" className="underline hover:text-white transition-colors">Terms of Service</a>
+              <span>&</span>
+              <a href="/privacy-policy" className="underline hover:text-white transition-colors">Privacy Policy</a>
+            </div>
           </div>
 
 
@@ -1011,8 +1026,27 @@ const App: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
-      </div>
+
+          {/* Visitor Access */}
+          <div className="mt-12 text-center">
+            <button
+              onClick={() => handlePlanSelect('visitor')}
+              className="px-8 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white text-xs font-bold uppercase tracking-widest transition-all border border-white/5 hover:border-white/10"
+            >
+              Continue as Visitor (Drawing Only)
+            </button>
+            <p className="mt-4 text-[10px] text-slate-600 max-w-md mx-auto">
+              Visitor mode allows access to the canvas and basic tools. AI features, cloud storage, and high-resolution exports are disabled.
+            </p>
+          </div>
+
+          <div className="mt-16 border-t border-white/5 pt-8 flex gap-8 justify-center text-[10px] text-slate-500 uppercase tracking-widest">
+            <a href="/terms-of-service" className="hover:text-cyan-400 transition-colors">Terms</a>
+            <a href="/privacy-policy" className="hover:text-cyan-400 transition-colors">Privacy</a>
+          </div>
+
+        </div >
+      </div >
     );
   }
 
@@ -1096,7 +1130,7 @@ const App: React.FC = () => {
         <div className="flex items-center gap-2 md:gap-4">
 
           {/* Model Toggle (Desktop Only) */}
-          {userTier !== 'designer' && (
+          {userTier !== 'designer' && userTier !== 'visitor' && (
             <div className="hidden md:flex bg-black/30 border border-white/10 rounded-full p-1 backdrop-blur-md">
               <button onClick={() => setModelMode('standard')} className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all duration-300 ${modelMode === 'standard' ? 'bg-white/15 text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}>Std</button>
               <button onClick={() => setModelMode('pro')} className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all duration-300 ${modelMode === 'pro' ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/40' : 'text-slate-500 hover:text-white'}`}>Pro</button>
@@ -1106,27 +1140,31 @@ const App: React.FC = () => {
           {/* HERO ACTIONS GROUP (Always Visible - Compact on Mobile) */}
           <div className="flex items-center gap-2">
             {/* Veo Studio Button */}
-            <button
-              onClick={() => { setVideoStartFrame(styleResult || null); setIsVideoStudioOpen(true); }}
-              className="group relative px-3 py-2 md:px-5 md:py-2.5 rounded-xl overflow-hidden transition-all duration-300 hover:-translate-y-0.5"
-            >
-              <div className={`absolute inset-0 transition-opacity duration-300 ${theme === 'dark' ? 'bg-cyan-500/10 group-hover:bg-cyan-500/20' : 'bg-cyan-50 group-hover:bg-cyan-100'}`} />
-              <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-r from-transparent via-cyan-400/10 to-transparent skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%]`} />
-              <div className={`relative flex items-center gap-2 ${theme === 'dark' ? 'text-cyan-300' : 'text-cyan-700'}`}>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                <span className="hidden md:inline text-[11px] font-bold uppercase tracking-widest">Veo</span>
-              </div>
-              <div className={`absolute inset-0 border rounded-xl opacity-20 pointer-events-none ${theme === 'dark' ? 'border-cyan-400' : 'border-cyan-600'}`} />
-            </button>
+            {userTier !== 'visitor' && (
+              <button
+                onClick={() => { setVideoStartFrame(styleResult || null); setIsVideoStudioOpen(true); }}
+                className="group relative px-3 py-2 md:px-5 md:py-2.5 rounded-xl overflow-hidden transition-all duration-300 hover:-translate-y-0.5"
+              >
+                <div className={`absolute inset-0 transition-opacity duration-300 ${theme === 'dark' ? 'bg-cyan-500/10 group-hover:bg-cyan-500/20' : 'bg-cyan-50 group-hover:bg-cyan-100'}`} />
+                <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-r from-transparent via-cyan-400/10 to-transparent skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%]`} />
+                <div className={`relative flex items-center gap-2 ${theme === 'dark' ? 'text-cyan-300' : 'text-cyan-700'}`}>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                  <span className="hidden md:inline text-[11px] font-bold uppercase tracking-widest">Veo</span>
+                </div>
+                <div className={`absolute inset-0 border rounded-xl opacity-20 pointer-events-none ${theme === 'dark' ? 'border-cyan-400' : 'border-cyan-600'}`} />
+              </button>
+            )}
 
             {/* Recharge Button */}
-            <button
-              onClick={() => setShowUpgradeModal(true)}
-              className="relative px-3 py-2 md:px-5 md:py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/20 hover:shadow-amber-500/40 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2 group"
-            >
-              <svg className="w-4 h-4 transition-transform group-hover:rotate-180 duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-              <span className="hidden md:inline text-[11px] font-bold uppercase tracking-widest">Recharge</span>
-            </button>
+            {userTier !== 'visitor' && (
+              <button
+                onClick={() => setShowUpgradeModal(true)}
+                className="relative px-3 py-2 md:px-5 md:py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/20 hover:shadow-amber-500/40 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2 group"
+              >
+                <svg className="w-4 h-4 transition-transform group-hover:rotate-180 duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                <span className="hidden md:inline text-[11px] font-bold uppercase tracking-widest">Recharge</span>
+              </button>
+            )}
           </div>
 
           <div className={`hidden md:block h-6 w-px mx-1 ${theme === 'dark' ? 'bg-white/10' : 'bg-slate-200'}`} />
@@ -1371,6 +1409,15 @@ const App: React.FC = () => {
               </div>
             </div>
           </section>
+
+          {/* Legal Footer for Google Verification */}
+          <div className={`mt-6 pt-6 border-t flex flex-col gap-2 ${theme === 'dark' ? 'border-white/5' : 'border-slate-100'}`}>
+            <div className="flex gap-4 justify-center">
+              <a href="/privacy-policy" target="_blank" className={`text-[9px] font-bold uppercase tracking-widest transition-colors ${theme === 'dark' ? 'text-slate-500 hover:text-white' : 'text-slate-400 hover:text-cyan-600'}`}>Privacy</a>
+              <a href="/terms-of-service" target="_blank" className={`text-[9px] font-bold uppercase tracking-widest transition-colors ${theme === 'dark' ? 'text-slate-500 hover:text-white' : 'text-slate-400 hover:text-cyan-600'}`}>Terms</a>
+            </div>
+            <p className={`text-[8px] text-center uppercase tracking-widest ${theme === 'dark' ? 'text-slate-700' : 'text-slate-300'}`}>© 2026 Aura Domo</p>
+          </div>
         </aside>
 
         <section className={`flex-1 flex flex-col overflow-hidden ${theme === 'dark' ? 'bg-[#030303]' : 'bg-[#fcfcfc]'}`}>
@@ -1889,49 +1936,53 @@ const App: React.FC = () => {
       {showAdmin && <AdminDashboard onClose={() => setShowAdmin(false)} />}
 
       {/* UPSCALE LOADING OVERLAY */}
-      {isUpscaling && (
-        <div className="fixed inset-0 z-[10001] bg-black/80 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in duration-500">
-          <div className="relative w-24 h-24 mb-8">
-            <div className="absolute inset-0 border-t-4 border-cyan-500 rounded-full animate-spin"></div>
-            <div className="absolute inset-3 border-r-4 border-pink-500 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
+      {
+        isUpscaling && (
+          <div className="fixed inset-0 z-[10001] bg-black/80 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in duration-500">
+            <div className="relative w-24 h-24 mb-8">
+              <div className="absolute inset-0 border-t-4 border-cyan-500 rounded-full animate-spin"></div>
+              <div className="absolute inset-3 border-r-4 border-pink-500 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
+            </div>
+            <h2 className="text-2xl font-light tracking-[0.2em] text-white uppercase animate-pulse">Enhancing Masterpiece</h2>
+            <p className="text-cyan-400 text-xs tracking-widest mt-4 uppercase font-bold">Applying Nano-Banana Pro Intelligence...</p>
           </div>
-          <h2 className="text-2xl font-light tracking-[0.2em] text-white uppercase animate-pulse">Enhancing Masterpiece</h2>
-          <p className="text-cyan-400 text-xs tracking-widest mt-4 uppercase font-bold">Applying Nano-Banana Pro Intelligence...</p>
-        </div>
-      )}
+        )
+      }
 
       {/* UPSCALE RESULT MODAL */}
-      {showUpscaleModal && upscaleResult && (
-        <div className="fixed inset-0 z-[10000] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="relative w-full max-w-4xl max-h-[90vh] bg-[#0f172a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-white/5 bg-black/20">
-              <h3 className="text-white font-bold text-sm tracking-widest uppercase flex items-center gap-2">
-                <span className="text-xl">✨</span> High-Res Upscale Complete
-              </h3>
-              <button onClick={() => setShowUpscaleModal(false)} className="p-2 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-colors">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
+      {
+        showUpscaleModal && upscaleResult && (
+          <div className="fixed inset-0 z-[10000] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
+            <div className="relative w-full max-w-4xl max-h-[90vh] bg-[#0f172a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-white/5 bg-black/20">
+                <h3 className="text-white font-bold text-sm tracking-widest uppercase flex items-center gap-2">
+                  <span className="text-xl">✨</span> High-Res Upscale Complete
+                </h3>
+                <button onClick={() => setShowUpscaleModal(false)} className="p-2 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-colors">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
 
-            {/* Image Content */}
-            <div className="flex-1 overflow-auto p-4 bg-[url('/grid.png')] bg-repeat flex items-center justify-center">
-              <img src={upscaleResult} alt="Upscaled Art" className="max-w-full max-h-[70vh] object-contain shadow-2xl rounded-lg" />
-            </div>
+              {/* Image Content */}
+              <div className="flex-1 overflow-auto p-4 bg-[url('/grid.png')] bg-repeat flex items-center justify-center">
+                <img src={upscaleResult} alt="Upscaled Art" className="max-w-full max-h-[70vh] object-contain shadow-2xl rounded-lg" />
+              </div>
 
-            {/* Actions */}
-            <div className="p-6 border-t border-white/5 bg-black/20 flex justify-end gap-4">
-              <button onClick={() => setShowUpscaleModal(false)} className="px-6 py-3 rounded-xl text-slate-400 font-bold uppercase text-xs tracking-widest hover:text-white hover:bg-white/5 transition-all">
-                Discard
-              </button>
-              <button onClick={() => handleDownload(upscaleResult, 'image')} className="px-8 py-3 rounded-xl bg-cyan-500 text-white font-bold uppercase text-xs tracking-widest hover:bg-cyan-400 shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                Download {userTier ? TIER_CONFIG[userTier].upscaleRes : '1K'} Result
-              </button>
+              {/* Actions */}
+              <div className="p-6 border-t border-white/5 bg-black/20 flex justify-end gap-4">
+                <button onClick={() => setShowUpscaleModal(false)} className="px-6 py-3 rounded-xl text-slate-400 font-bold uppercase text-xs tracking-widest hover:text-white hover:bg-white/5 transition-all">
+                  Discard
+                </button>
+                <button onClick={() => handleDownload(upscaleResult, 'image')} className="px-8 py-3 rounded-xl bg-cyan-500 text-white font-bold uppercase text-xs tracking-widest hover:bg-cyan-400 shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                  Download {userTier ? TIER_CONFIG[userTier].upscaleRes : '1K'} Result
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
     </div >
   );
 };

@@ -5,7 +5,7 @@ export interface DrawingState {
   tool: 'brush' | 'eraser';
 }
 
-export type UserTier = 'designer' | 'producer' | 'studio';
+export type UserTier = 'designer' | 'producer' | 'studio' | 'visitor';
 export type ModelMode = 'standard' | 'pro';
 
 export interface HistoryItem {
