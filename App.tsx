@@ -139,8 +139,8 @@ const App: React.FC = () => {
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchUserProfile(session.user.id);
-        // Clean URL hash
-        if (window.location.hash) {
+        // Clean URL hash (including empty hash)
+        if (window.location.hash || window.location.href.endsWith('#')) {
           window.history.replaceState(null, '', window.location.pathname);
         }
       } else {
@@ -158,7 +158,7 @@ const App: React.FC = () => {
         if (_event === 'SIGNED_IN') {
           setIsProfileLoading(true);
           // Clean URL hash immediately on sign in
-          if (window.location.hash) {
+          if (window.location.hash || window.location.href.endsWith('#')) {
             window.history.replaceState(null, '', window.location.pathname);
           }
         }
