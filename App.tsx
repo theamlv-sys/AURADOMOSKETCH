@@ -1005,8 +1005,8 @@ const App: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* DESIGNER */}
             <div className="group relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-slate-500/10 to-transparent rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              <div className="relative p-7 rounded-2xl bg-white/[0.02] border border-white/10 hover:border-white/20 transition-all duration-500 flex flex-col h-full hover:-translate-y-1">
+              <div className={`absolute inset-0 bg-gradient-to-br from-slate-500/10 to-transparent rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${userTier === 'designer' ? 'opacity-100 ring-4 ring-slate-500/50' : ''}`} />
+              <div className={`relative p-7 rounded-2xl bg-white/[0.02] border transition-all duration-500 flex flex-col h-full hover:-translate-y-1 ${userTier === 'designer' ? 'border-slate-400 bg-slate-400/5' : 'border-white/10 hover:border-white/20'}`}>
                 <h3 className="text-xl font-semibold mb-2">Designer</h3>
                 <div className="text-4xl font-semibold mb-6">$99<span className="text-base font-normal text-slate-500">/mo</span></div>
                 <ul className="space-y-3.5 mb-7 flex-1 text-sm">
@@ -1021,8 +1021,8 @@ const App: React.FC = () => {
 
             {/* PRODUCER - POPULAR */}
             <div className="group relative md:-mt-3 md:mb-3">
-              <div className="absolute -inset-px bg-gradient-to-b from-cyan-400 via-cyan-400 to-cyan-500 rounded-2xl blur-sm opacity-40 group-hover:opacity-60 transition-opacity" />
-              <div className="relative p-7 rounded-2xl bg-[#080808] border border-cyan-400/30 flex flex-col h-full hover:-translate-y-1 transition-all duration-500">
+              <div className={`absolute -inset-px bg-gradient-to-b from-cyan-400 via-cyan-400 to-cyan-500 rounded-2xl blur-sm opacity-40 transition-opacity ${userTier === 'producer' ? 'opacity-100 ring-4 ring-cyan-500/50' : 'group-hover:opacity-60'}`} />
+              <div className={`relative p-7 rounded-2xl bg-[#080808] border flex flex-col h-full hover:-translate-y-1 transition-all duration-500 ${userTier === 'producer' ? 'border-cyan-400 bg-cyan-400/5' : 'border-cyan-400/30'}`}>
                 <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-cyan-300/50 to-transparent" />
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-cyan-500 rounded-full text-[10px] font-semibold uppercase tracking-wider">Popular</div>
                 <h3 className="text-xl font-semibold mb-2 text-cyan-300">Producer</h3>
@@ -1039,8 +1039,8 @@ const App: React.FC = () => {
 
             {/* STUDIO */}
             <div className="group relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              <div className="relative p-7 rounded-2xl bg-white/[0.02] border border-amber-500/20 hover:border-amber-500/40 transition-all duration-500 flex flex-col h-full hover:-translate-y-1">
+              <div className={`absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent rounded-2xl blur-xl opacity-0 transition-opacity duration-500 ${userTier === 'studio' ? 'opacity-100 ring-4 ring-amber-500/50' : 'group-hover:opacity-100'}`} />
+              <div className={`relative p-7 rounded-2xl bg-white/[0.02] border transition-all duration-500 flex flex-col h-full hover:-translate-y-1 ${userTier === 'studio' ? 'border-amber-500/40 bg-amber-500/5' : 'border-amber-500/20 hover:border-amber-500/40'}`}>
                 <h3 className="text-xl font-semibold mb-2 text-amber-400">Studio</h3>
                 <div className="text-4xl font-semibold mb-6">$599<span className="text-base font-normal text-slate-500">/mo</span></div>
                 <ul className="space-y-3.5 mb-7 flex-1 text-sm">
@@ -1055,17 +1055,19 @@ const App: React.FC = () => {
           </div>
 
           {/* Visitor Access */}
-          <div className="mt-12 text-center">
-            <button
-              onClick={() => handlePlanSelect('visitor')}
-              className="px-8 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white text-xs font-bold uppercase tracking-widest transition-all border border-white/5 hover:border-white/10"
-            >
-              Continue as Visitor (Drawing Only)
-            </button>
-            <p className="mt-4 text-[10px] text-slate-600 max-w-md mx-auto">
-              Visitor mode allows access to the canvas and basic tools. AI features, cloud storage, and high-resolution exports are disabled.
-            </p>
-          </div>
+          {!showPlanSelection && (
+            <div className="mt-12 text-center">
+              <button
+                onClick={() => handlePlanSelect('visitor')}
+                className="px-8 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white text-xs font-bold uppercase tracking-widest transition-all border border-white/5 hover:border-white/10"
+              >
+                Continue as Visitor (Drawing Only)
+              </button>
+              <p className="mt-4 text-[10px] text-slate-600 max-w-md mx-auto">
+                Visitor mode allows access to the canvas and basic tools. AI features, cloud storage, and high-resolution exports are disabled.
+              </p>
+            </div>
+          )}
 
           <div className="mt-16 border-t border-white/5 pt-8 flex gap-8 justify-center text-[10px] text-slate-500 uppercase tracking-widest">
             <a href="/terms-of-service" className="hover:text-cyan-400 transition-colors">Terms</a>

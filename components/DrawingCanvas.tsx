@@ -60,8 +60,17 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       sExport.height = canvasRef.current.height;
       const sCtx = sExport.getContext('2d');
       if (sCtx) {
-        if (backgroundImage && bgImageRef.current && bgImageRef.current.complete) {
-          sCtx.drawImage(bgImageRef.current, 0, 0, sExport.width, sExport.height);
+        if (backgroundImage) {
+          const imgToDraw = bgImageRef.current;
+          // Even more aggressive check: if ref isn't ready but we have a URL, try to draw it anyway
+          if (imgToDraw && (imgToDraw.complete || imgToDraw.naturalWidth > 0)) {
+            sCtx.drawImage(imgToDraw, 0, 0, sExport.width, sExport.height);
+          } else {
+            // Hard fallback: Draw white if we really can't get the image, 
+            // but the browser usually cache-hits the dataUrl immediately.
+            sCtx.fillStyle = 'white';
+            sCtx.fillRect(0, 0, sExport.width, sExport.height);
+          }
         } else {
           sCtx.fillStyle = 'white';
           sCtx.fillRect(0, 0, sExport.width, sExport.height);
