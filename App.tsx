@@ -92,6 +92,7 @@ const App: React.FC = () => {
 
   // Economy & Tier State
   const [userTier, setUserTier] = useState<UserTier | null>(null);
+  const [showPlanSelection, setShowPlanSelection] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const drawingCanvasRef = useRef<DrawingCanvasRef>(null);
 
@@ -966,9 +967,21 @@ const App: React.FC = () => {
   }
 
   // PLAN SELECTION SCREEN
-  if (!userTier || userTier === 'none') {
+  if (!userTier || userTier === 'none' || showPlanSelection) {
     return (
       <div className="min-h-screen w-screen bg-black text-white flex flex-col items-center justify-center p-6 overflow-hidden relative">
+        {/* Header - Fixed to top for returning users */}
+        {showPlanSelection && (
+          <div className="absolute top-0 left-0 p-8 z-[100]">
+            <button
+              onClick={() => setShowPlanSelection(false)}
+              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 font-bold uppercase text-[10px] tracking-[0.2em] border border-white/10 transition-all group"
+            >
+              <svg className="w-4 h-4 transition-transform group-hover:-translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+              Back to Canvas
+            </button>
+          </div>
+        )}
         {/* Animated background orbs */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute w-[700px] h-[700px] -top-48 left-1/4 bg-cyan-500/15 rounded-full blur-[180px] animate-pulse" style={{ animationDuration: '6s' }} />
@@ -1264,7 +1277,7 @@ const App: React.FC = () => {
                   <div className={`h-px my-1 ${theme === 'dark' ? 'bg-white/5' : 'bg-slate-100'}`} />
 
                   {/* Upgrade / Subscription Status */}
-                  <button onClick={() => { setShowUpgradeModal(true); setIsProfileMenuOpen(false); }} className={`w-full text-left flex items-center justify-between px-3 py-2 text-[11px] font-bold rounded-lg transition-colors group ${theme === 'dark' ? 'text-amber-400 hover:bg-amber-400/10' : 'text-amber-600 hover:bg-amber-50'}`}>
+                  <button onClick={() => { setShowPlanSelection(true); setIsProfileMenuOpen(false); }} className={`w-full text-left flex items-center justify-between px-3 py-2 text-[11px] font-bold rounded-lg transition-colors group ${theme === 'dark' ? 'text-amber-400 hover:bg-amber-400/10' : 'text-amber-600 hover:bg-amber-50'}`}>
                     <div className="flex items-center gap-3">
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                       Upgrade Plan
@@ -1346,7 +1359,7 @@ const App: React.FC = () => {
                   <div className={`h-px w-full my-1 ${theme === 'dark' ? 'bg-white/10' : 'bg-slate-100'}`} />
 
                   {/* Upgrade (Mobile) */}
-                  <button onClick={() => { setShowUpgradeModal(true); setIsMobileMenuOpen(false); }} className={`flex w-full items-center justify-between px-4 py-3 rounded-lg text-xs font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-amber-400 hover:bg-white/5' : 'text-amber-600 hover:bg-slate-50'}`}>
+                  <button onClick={() => { setShowPlanSelection(true); setIsMobileMenuOpen(false); }} className={`flex w-full items-center justify-between px-4 py-3 rounded-lg text-xs font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-amber-400 hover:bg-white/5' : 'text-amber-600 hover:bg-slate-50'}`}>
                     <div className="flex items-center gap-3">
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                       Upgrade Plan
