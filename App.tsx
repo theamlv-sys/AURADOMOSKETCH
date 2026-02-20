@@ -742,7 +742,13 @@ const App: React.FC = () => {
       };
 
       // Fallback prompt if style is missing (Prevents "No Content" error)
-      const effectivePrompt = currentStyle?.prompt || activeStyle?.prompt || "A high quality drawing";
+      let effectivePrompt = currentStyle?.prompt || activeStyle?.prompt || "A high quality drawing";
+
+      // CRITICAL: Global Transformation Logic
+      // If we have a reference image and we are NOT in 'edit' mode, we MUST force the AI to transform the style.
+      if (effectiveImage && currentStyle?.id !== 'edit') {
+        effectivePrompt = `GLOBAL TRANSFORMATION: Redraw the entire reference image using exactly this style: ${effectivePrompt}. MANDATORY: Completely overwrite the original photographic or realistic style with this new aesthetic. DO NOT PRESERVE the original style.`;
+      }
       const pencilStyle = STYLE_PRESETS.find(s => s.id === 'pencil')?.prompt || "Graphite pencil sketch.";
 
       // We only generate pencil sketch if expanded to save tokens in condensed view
