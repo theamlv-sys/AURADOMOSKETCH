@@ -83,14 +83,15 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   };
 
   useEffect(() => {
+    // CRITICAL: Clear immediately on change to prevent old image ghosting
+    bgImageRef.current = null;
+
     if (backgroundImage) {
       const img = new Image();
       img.onload = () => {
         bgImageRef.current = img;
       };
       img.src = backgroundImage;
-    } else {
-      bgImageRef.current = null;
     }
   }, [backgroundImage]);
 

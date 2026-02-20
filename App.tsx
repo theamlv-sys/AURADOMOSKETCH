@@ -15,6 +15,7 @@ import { API_BASE_URL } from './config';
 const stripePromise = loadStripe((import.meta as any).env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const STYLE_PRESETS: StylePreset[] = [
+  { id: 'edit', name: 'Edit', prompt: 'STRICT_LOCKDOWN: SEAMLESS IMAGE EDIT. MANDATORY: Preserve the exact style, lighting, and textures of the uploaded reference image. Blend the user\'s sketch naturally into the scene. FORBIDDEN: Changing the original image\'s artistic style or medium.', thumbnail: '🛠️' },
   { id: 'cartoon_mix', name: 'Cartoon Mix', prompt: 'STRICT_LOCKDOWN: ULTIMATE CARTOON HYBRID. Fusion of adult sci-fi thin-line precision (Rick and Morty style), iconic yellow-saturated skin tones (Simpsons style), and sharp urban anime aesthetics (Boondocks style). MANDATORY: Rendered with high-budget Pixar-quality 3D volumetric lighting, cinematic surface scattering, and perfectly smooth textures. FORBIDDEN: Any realism, photographic skin, or real-world human features.', thumbnail: '📺' },
   { id: 'bighead', name: 'Big Head Mode', prompt: 'STRICT_LOCKDOWN: FUNNY 3D CARICATURE. Ultra-exaggerated cartoon proportions. MANDATORY: Disproportionately massive head (5x normal size), extremely tiny micro body, oversized comical giant feet, expressive playful features, high-budget 3D Disney/Pixar style render, vibrant colors. FORBIDDEN: Realistic proportions, normal human anatomy, serious lighting.', thumbnail: '🦒' },
   { id: 'aura', name: 'Aura', prompt: 'STRICT_LOCKDOWN: SIGNATURE AURA ART. High-fidelity 3D-Illustrative hybrid. MANDATORY: Glowing edges, ethereal lighting, smooth stylized surfaces. FORBIDDEN: Photorealism.', thumbnail: '✨' },
@@ -1005,8 +1006,11 @@ const App: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* DESIGNER */}
             <div className="group relative">
-              <div className={`absolute inset-0 bg-gradient-to-br from-slate-500/10 to-transparent rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${userTier === 'designer' ? 'opacity-100 ring-4 ring-slate-500/50' : ''}`} />
-              <div className={`relative p-7 rounded-2xl bg-white/[0.02] border transition-all duration-500 flex flex-col h-full hover:-translate-y-1 ${userTier === 'designer' ? 'border-slate-400 bg-slate-400/5' : 'border-white/10 hover:border-white/20'}`}>
+              <div className={`absolute inset-0 bg-gradient-to-br from-slate-500/10 to-transparent rounded-2xl blur-xl transition-opacity duration-500 ${userTier === 'designer' ? 'opacity-100 ring-4 ring-amber-500/50' : 'opacity-0 group-hover:opacity-100'}`} />
+              <div className={`relative p-7 rounded-2xl bg-white/[0.02] border transition-all duration-500 flex flex-col h-full hover:-translate-y-1 ${userTier === 'designer' ? 'border-amber-500/50 bg-amber-500/5 shadow-[0_0_30px_rgba(245,158,11,0.2)]' : 'border-white/10 hover:border-white/20'}`}>
+                {userTier === 'designer' && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-amber-500 text-black rounded-full text-[10px] font-black uppercase tracking-wider shadow-lg">Current Plan</div>
+                )}
                 <h3 className="text-xl font-semibold mb-2">Designer</h3>
                 <div className="text-4xl font-semibold mb-6">$99<span className="text-base font-normal text-slate-500">/mo</span></div>
                 <ul className="space-y-3.5 mb-7 flex-1 text-sm">
@@ -1015,16 +1019,22 @@ const App: React.FC = () => {
                   <li className="flex gap-3 text-slate-500"><span className="text-slate-600">○</span> 720p Video</li>
                   <li className="flex gap-3 text-slate-500"><span className="text-slate-600">○</span> 1K Upscaling</li>
                 </ul>
-                <button onClick={() => handlePlanSelect('designer')} className="w-full py-3.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-medium tracking-wide transition-all border border-white/5">Select</button>
+                <button onClick={() => handlePlanSelect('designer')} className={`w-full py-3.5 rounded-xl text-xs font-black tracking-widest uppercase transition-all border ${userTier === 'designer' ? 'bg-amber-500 text-black border-amber-400' : 'bg-white/10 hover:bg-white/15 text-white border-white/5'}`}>
+                  {userTier === 'designer' ? 'Re-Purchase' : 'Select'}
+                </button>
               </div>
             </div>
 
             {/* PRODUCER - POPULAR */}
             <div className="group relative md:-mt-3 md:mb-3">
-              <div className={`absolute -inset-px bg-gradient-to-b from-cyan-400 via-cyan-400 to-cyan-500 rounded-2xl blur-sm opacity-40 transition-opacity ${userTier === 'producer' ? 'opacity-100 ring-4 ring-cyan-500/50' : 'group-hover:opacity-60'}`} />
-              <div className={`relative p-7 rounded-2xl bg-[#080808] border flex flex-col h-full hover:-translate-y-1 transition-all duration-500 ${userTier === 'producer' ? 'border-cyan-400 bg-cyan-400/5' : 'border-cyan-400/30'}`}>
+              <div className={`absolute -inset-px bg-gradient-to-b from-cyan-400 via-cyan-400 to-cyan-500 rounded-2xl blur-sm transition-opacity ${userTier === 'producer' ? 'opacity-100 ring-4 ring-amber-500/50' : 'opacity-40 group-hover:opacity-60'}`} />
+              <div className={`relative p-7 rounded-2xl bg-[#080808] border flex flex-col h-full hover:-translate-y-1 transition-all duration-500 ${userTier === 'producer' ? 'border-amber-500 bg-cyan-900/10 shadow-[0_0_30px_rgba(245,158,11,0.2)]' : 'border-cyan-400/30'}`}>
                 <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-cyan-300/50 to-transparent" />
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-cyan-500 rounded-full text-[10px] font-semibold uppercase tracking-wider">Popular</div>
+                {userTier === 'producer' ? (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-amber-500 text-black rounded-full text-[10px] font-black uppercase tracking-wider shadow-lg z-10">Current Plan</div>
+                ) : (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-cyan-500 rounded-full text-[10px] font-semibold uppercase tracking-wider">Popular</div>
+                )}
                 <h3 className="text-xl font-semibold mb-2 text-cyan-300">Producer</h3>
                 <div className="text-4xl font-semibold mb-6">$199<span className="text-base font-normal text-slate-500">/mo</span></div>
                 <ul className="space-y-3.5 mb-7 flex-1 text-sm">
@@ -1033,14 +1043,19 @@ const App: React.FC = () => {
                   <li className="flex gap-3 text-slate-300"><span className="text-cyan-300">✓</span> 1080p Video</li>
                   <li className="flex gap-3 text-slate-300"><span className="text-cyan-300">✓</span> 2K Upscaling</li>
                 </ul>
-                <button onClick={() => handlePlanSelect('producer')} className="w-full py-3.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-xs font-medium tracking-wide transition-all shadow-[0_8px_30px_rgba(99,102,241,0.3)]">Select</button>
+                <button onClick={() => handlePlanSelect('producer')} className={`w-full py-3.5 rounded-xl text-xs font-black tracking-widest uppercase transition-all shadow-[0_8px_30px_rgba(99,102,241,0.3)] ${userTier === 'producer' ? 'bg-amber-500 text-white' : 'bg-cyan-500 hover:bg-cyan-400 text-white'}`}>
+                  {userTier === 'producer' ? 'Re-Purchase' : 'Select'}
+                </button>
               </div>
             </div>
 
             {/* STUDIO */}
             <div className="group relative">
-              <div className={`absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent rounded-2xl blur-xl opacity-0 transition-opacity duration-500 ${userTier === 'studio' ? 'opacity-100 ring-4 ring-amber-500/50' : 'group-hover:opacity-100'}`} />
-              <div className={`relative p-7 rounded-2xl bg-white/[0.02] border transition-all duration-500 flex flex-col h-full hover:-translate-y-1 ${userTier === 'studio' ? 'border-amber-500/40 bg-amber-500/5' : 'border-amber-500/20 hover:border-amber-500/40'}`}>
+              <div className={`absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent rounded-2xl blur-xl transition-opacity duration-500 ${userTier === 'studio' ? 'opacity-100 ring-4 ring-amber-500/50' : 'opacity-0 group-hover:opacity-100'}`} />
+              <div className={`relative p-7 rounded-2xl bg-white/[0.02] border transition-all duration-500 flex flex-col h-full hover:-translate-y-1 ${userTier === 'studio' ? 'border-amber-500 bg-amber-500/5 shadow-[0_0_30px_rgba(245,158,11,0.2)]' : 'border-amber-500/20 hover:border-amber-500/40'}`}>
+                {userTier === 'studio' && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-amber-500 text-black rounded-full text-[10px] font-black uppercase tracking-wider shadow-lg z-10">Current Plan</div>
+                )}
                 <h3 className="text-xl font-semibold mb-2 text-amber-400">Studio</h3>
                 <div className="text-4xl font-semibold mb-6">$599<span className="text-base font-normal text-slate-500">/mo</span></div>
                 <ul className="space-y-3.5 mb-7 flex-1 text-sm">
@@ -1049,7 +1064,9 @@ const App: React.FC = () => {
                   <li className="flex gap-3 text-slate-300"><span className="text-amber-400">✓</span> 4K Upscaling</li>
                   <li className="flex gap-3 text-slate-300"><span className="text-amber-400">✓</span> Commercial Use</li>
                 </ul>
-                <button onClick={() => handlePlanSelect('studio')} className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black text-xs font-medium tracking-wide transition-all shadow-[0_8px_30px_rgba(234,179,8,0.3)]">Select</button>
+                <button onClick={() => handlePlanSelect('studio')} className={`w-full py-3.5 rounded-xl text-black text-xs font-black tracking-widest uppercase transition-all shadow-[0_8px_30px_rgba(234,179,8,0.3)] ${userTier === 'studio' ? 'bg-amber-400' : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500'}`}>
+                  {userTier === 'studio' ? 'Re-Purchase' : 'Select'}
+                </button>
               </div>
             </div>
           </div>
@@ -1416,7 +1433,7 @@ const App: React.FC = () => {
           <section>
             <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-500 mb-6">Engine Styles</h3>
             <div className="grid grid-cols-2 gap-3 pb-4">
-              {STYLE_PRESETS.map(style => (
+              {STYLE_PRESETS.filter(style => style.id !== 'edit' || referenceImage).map(style => (
                 <button key={style.id} onClick={() => handleStyleSelect(style)} className={`p-3 md:p-4 rounded-[1.25rem] border transition-all text-left flex flex-col gap-2 ${activeStyle.id === style.id ? 'bg-cyan-500 border-cyan-500 shadow-lg ring-4 ring-cyan-500/20' : `${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-100 shadow-sm'}`}`}>
                   <span className="text-xl md:text-2xl">{style.thumbnail}</span>
                   <span className={`text-[8px] md:text-[9px] font-black uppercase tracking-tight ${activeStyle.id === style.id ? 'text-white' : (theme === 'dark' ? 'text-slate-400' : 'text-slate-600')}`}>{style.name}</span>
