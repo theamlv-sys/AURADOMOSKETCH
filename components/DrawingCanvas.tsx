@@ -40,6 +40,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   const isSpacePressed = useRef(false);
   const lastMousePos = useRef({ x: 0, y: 0 });
   const lastSnapshotTime = useRef(0);
+  const bgImageRef = useRef<HTMLImageElement | null>(null);
 
   const getCtx = () => {
     const c = canvasRef.current;
@@ -59,10 +60,8 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       sExport.height = canvasRef.current.height;
       const sCtx = sExport.getContext('2d');
       if (sCtx) {
-        if (backgroundImage) {
-          const img = new Image();
-          img.src = backgroundImage;
-          sCtx.drawImage(img, 0, 0, sExport.width, sExport.height);
+        if (backgroundImage && bgImageRef.current && bgImageRef.current.complete) {
+          sCtx.drawImage(bgImageRef.current, 0, 0, sExport.width, sExport.height);
         } else {
           sCtx.fillStyle = 'white';
           sCtx.fillRect(0, 0, sExport.width, sExport.height);
@@ -73,6 +72,18 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     }
     return '';
   };
+
+  useEffect(() => {
+    if (backgroundImage) {
+      const img = new Image();
+      img.onload = () => {
+        bgImageRef.current = img;
+      };
+      img.src = backgroundImage;
+    } else {
+      bgImageRef.current = null;
+    }
+  }, [backgroundImage]);
 
   const clearAll = () => {
     const ctx = getCtx();
@@ -253,9 +264,9 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
           transition: isPanning.current ? 'none' : 'transform 0.1s ease-out'
         }}
       >
-        <div className="absolute inset-0 bg-white" />
+        <div className={`absolute inset-0 ${backgroundImage ? 'bg-transparent' : 'bg-white'}`} />
         {backgroundImage && (
-          <div className="absolute inset-0 bg-contain bg-center bg-no-repeat opacity-50" style={{ backgroundImage: `url(${backgroundImage})` }} />
+          <div className="absolute inset-0 bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${backgroundImage})` }} />
         )}
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block z-10 pointer-events-none" />
         <div
