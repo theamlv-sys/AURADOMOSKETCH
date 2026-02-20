@@ -747,7 +747,7 @@ const App: React.FC = () => {
       // CRITICAL: Global Transformation Logic
       // If we have a reference image and we are NOT in 'edit' mode, we MUST force the AI to transform the style.
       if (effectiveImage && currentStyle?.id !== 'edit') {
-        effectivePrompt = `STRICT_TRANSFORMATION: Redraw the entire reference image using exactly this style: ${effectivePrompt}. MANDATORY: ERASE and OVERWRITE the original photographic or realistic style. Use the photo ONLY for composition and structure. The final output must be 100% ${currentStyle?.name || 'the selected style'}.`;
+        effectivePrompt = `STRICT_STYLE_OVERWRITE: Redraw the entire reference image using exactly this style: ${effectivePrompt}. MANDATORY: IGNORE the original photographic aesthetics. DISREGARD the original colors, lighting, and textures. RECONSTRUCT the scene from scratch in the target style while using the photo ONLY for structural placement. The final output must be PURE ${currentStyle?.name || 'the selected style'} with ZERO realistic bleed.`;
       }
       const pencilStyle = STYLE_PRESETS.find(s => s.id === 'pencil')?.prompt || "Graphite pencil sketch.";
 
@@ -856,8 +856,10 @@ const App: React.FC = () => {
     setActiveStyle(style);
     localStorage.setItem('aura_last_style', style.id);
     if (window.innerWidth < 1024) setIsSidebarOpen(false);
-    // Explicitly trigger generate on style change using the NEW style, bypassing async state wait
-    if (currentSketchRef.current) handleGenerate(currentSketchRef.current, style);
+    // Explicitly trigger generate on style change if we have ANY data (sketch or photo)
+    if (currentSketchRef.current || referenceImage) {
+      handleGenerate(currentSketchRef.current || "", style);
+    }
   };
 
   const handleAspectSelect = (ratio: GenerationConfig['aspectRatio']) => {
