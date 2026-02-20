@@ -264,26 +264,29 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   }, [tool, color, brushSize, scale, offset, backgroundImage, onStrokeEnd, onRealTimeUpdate]);
 
   return (
-    <div className="w-full h-full relative group overflow-hidden select-none touch-none bg-white">
+    <div className="w-full h-full relative group overflow-hidden select-none touch-none bg-[#0a0a0a]">
       <div
-        className="origin-top-left relative"
+        className="absolute inset-0 flex items-center justify-center transform-gpu"
         style={{
-          width: '100%',
-          height: '100%',
           transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
-          transition: isPanning.current ? 'none' : 'transform 0.1s ease-out'
+          transition: isPanning.current ? 'none' : 'transform 0.1s cubic-bezier(0.2, 0, 0, 1)'
         }}
       >
-        <div className={`absolute inset-0 ${backgroundImage ? 'bg-transparent' : 'bg-white'}`} />
-        {backgroundImage && (
-          <div className="absolute inset-0 bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${backgroundImage})` }} />
-        )}
-        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block z-10 pointer-events-none" />
-        <div
-          className="absolute inset-0 z-30 cursor-crosshair pointer-events-auto"
-          onMouseDown={handleStart}
-          onTouchStart={handleStart}
-        />
+        <div className="relative w-full h-full flex items-center justify-center">
+          <div className={`absolute inset-0 ${backgroundImage ? 'bg-transparent' : 'bg-white'}`} />
+          {backgroundImage && (
+            <div
+              className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-300"
+              style={{ backgroundImage: `url(${backgroundImage})` }}
+            />
+          )}
+          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block z-10 pointer-events-none" />
+          <div
+            className="absolute inset-0 z-30 cursor-crosshair pointer-events-auto"
+            onMouseDown={handleStart}
+            onTouchStart={handleStart}
+          />
+        </div>
       </div>
 
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 p-1.5 bg-black/90 backdrop-blur-md border border-white/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-all z-40 shadow-2xl scale-95 group-hover:scale-100">

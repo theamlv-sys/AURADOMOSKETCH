@@ -220,7 +220,14 @@ const App: React.FC = () => {
   const [directives, setDirectives] = useState<string[]>([]);
   const [currentDirective, setCurrentDirective] = useState('');
 
-  const [activeStyle, setActiveStyle] = useState(STYLE_PRESETS[0]);
+  const [activeStyle, setActiveStyle] = useState(() => {
+    const lastId = localStorage.getItem('aura_last_style');
+    if (lastId) {
+      const found = STYLE_PRESETS.find(s => s.id === lastId);
+      if (found) return found;
+    }
+    return STYLE_PRESETS[0];
+  });
   const [aspectRatio, setAspectRatio] = useState<GenerationConfig['aspectRatio']>('1:1');
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -233,7 +240,9 @@ const App: React.FC = () => {
   // Tool Suite Toggle State
   const [isSuiteMinimized, setIsSuiteMinimized] = useState(false);
 
-  const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  const [referenceImage, setReferenceImage] = useState<string | null>(() => {
+    return localStorage.getItem('aura_reference_image');
+  });
   const [pencilResult, setPencilResult] = useState<string | null>(null);
   const [styleResult, setStyleResult] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -634,9 +643,19 @@ const App: React.FC = () => {
       reader.onload = (ev) => {
         const dataUrl = ev.target?.result as string;
         setReferenceImage(dataUrl);
+        localStorage.setItem('aura_reference_image', dataUrl);
+
+        // Auto-select Edit style
+        const editStyle = STYLE_PRESETS.find(s => s.id === 'edit');
+        if (editStyle) {
+          setActiveStyle(editStyle);
+          localStorage.setItem('aura_last_style', 'edit');
+        }
+
         setSavedSketch(null); // Clear previous drawing
         localStorage.removeItem('aura_sketch_backup'); // Clear persistent backup
         currentSketchRef.current = null;
+        setViewState({ scale: 1, offset: { x: 0, y: 0 } });
         setCanvasKey(k => k + 1);
         setStyleResult(null);
         setPencilResult(null);
@@ -815,6 +834,7 @@ const App: React.FC = () => {
 
   const handleStyleSelect = (style: StylePreset) => {
     setActiveStyle(style);
+    localStorage.setItem('aura_last_style', style.id);
     if (window.innerWidth < 1024) setIsSidebarOpen(false);
     // Explicitly trigger generate on style change using the NEW style, bypassing async state wait
     if (currentSketchRef.current) handleGenerate(currentSketchRef.current, style);
@@ -1019,8 +1039,12 @@ const App: React.FC = () => {
                   <li className="flex gap-3 text-slate-500"><span className="text-slate-600">○</span> 720p Video</li>
                   <li className="flex gap-3 text-slate-500"><span className="text-slate-600">○</span> 1K Upscaling</li>
                 </ul>
-                <button onClick={() => handlePlanSelect('designer')} className={`w-full py-3.5 rounded-xl text-xs font-black tracking-widest uppercase transition-all border ${userTier === 'designer' ? 'bg-amber-500 text-black border-amber-400' : 'bg-white/10 hover:bg-white/15 text-white border-white/5'}`}>
-                  {userTier === 'designer' ? 'Re-Purchase' : 'Select'}
+                <button
+                  disabled={userTier === 'designer'}
+                  onClick={() => handlePlanSelect('designer')}
+                  className={`w-full py-3.5 rounded-xl text-xs font-black tracking-widest uppercase transition-all border ${userTier === 'designer' ? 'bg-slate-800 text-slate-500 border-slate-700 cursor-not-allowed opacity-50' : 'bg-white/10 hover:bg-white/15 text-white border-white/5'}`}
+                >
+                  {userTier === 'designer' ? 'Current Plan' : 'Select'}
                 </button>
               </div>
             </div>
@@ -1043,8 +1067,12 @@ const App: React.FC = () => {
                   <li className="flex gap-3 text-slate-300"><span className="text-cyan-300">✓</span> 1080p Video</li>
                   <li className="flex gap-3 text-slate-300"><span className="text-cyan-300">✓</span> 2K Upscaling</li>
                 </ul>
-                <button onClick={() => handlePlanSelect('producer')} className={`w-full py-3.5 rounded-xl text-xs font-black tracking-widest uppercase transition-all shadow-[0_8px_30px_rgba(99,102,241,0.3)] ${userTier === 'producer' ? 'bg-amber-500 text-white' : 'bg-cyan-500 hover:bg-cyan-400 text-white'}`}>
-                  {userTier === 'producer' ? 'Re-Purchase' : 'Select'}
+                <button
+                  disabled={userTier === 'producer'}
+                  onClick={() => handlePlanSelect('producer')}
+                  className={`w-full py-3.5 rounded-xl text-xs font-black tracking-widest uppercase transition-all shadow-[0_8px_30px_rgba(99,102,241,0.3)] ${userTier === 'producer' ? 'bg-slate-800 text-slate-500 cursor-not-allowed opacity-50' : 'bg-cyan-500 hover:bg-cyan-400 text-white'}`}
+                >
+                  {userTier === 'producer' ? 'Current Plan' : 'Select'}
                 </button>
               </div>
             </div>
@@ -1064,8 +1092,12 @@ const App: React.FC = () => {
                   <li className="flex gap-3 text-slate-300"><span className="text-amber-400">✓</span> 4K Upscaling</li>
                   <li className="flex gap-3 text-slate-300"><span className="text-amber-400">✓</span> Commercial Use</li>
                 </ul>
-                <button onClick={() => handlePlanSelect('studio')} className={`w-full py-3.5 rounded-xl text-black text-xs font-black tracking-widest uppercase transition-all shadow-[0_8px_30px_rgba(234,179,8,0.3)] ${userTier === 'studio' ? 'bg-amber-400' : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500'}`}>
-                  {userTier === 'studio' ? 'Re-Purchase' : 'Select'}
+                <button
+                  disabled={userTier === 'studio'}
+                  onClick={() => handlePlanSelect('studio')}
+                  className={`w-full py-3.5 rounded-xl text-xs font-black tracking-widest uppercase transition-all shadow-[0_8px_30px_rgba(234,179,8,0.3)] ${userTier === 'studio' ? 'bg-slate-800 text-slate-500 cursor-not-allowed opacity-50' : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black'}`}
+                >
+                  {userTier === 'studio' ? 'Current Plan' : 'Select'}
                 </button>
               </div>
             </div>
@@ -1428,6 +1460,24 @@ const App: React.FC = () => {
                 </button>
               ))}
             </div>
+
+            {referenceImage && (
+              <button
+                onClick={() => {
+                  setReferenceImage(null);
+                  localStorage.removeItem('aura_reference_image');
+                  // Switch to a safe default style if currently in Edit mode
+                  if (activeStyle.id === 'edit') {
+                    const defaultStyle = STYLE_PRESETS.find(s => s.id === 'cartoon_mix') || STYLE_PRESETS[1];
+                    setActiveStyle(defaultStyle);
+                    localStorage.removeItem('aura_last_style');
+                  }
+                }}
+                className={`mt-4 w-full py-2.5 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all ${theme === 'dark' ? 'bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20' : 'bg-red-50 border-red-100 text-red-500 hover:bg-red-100'}`}
+              >
+                Clear Background
+              </button>
+            )}
           </section>
 
           <section>
