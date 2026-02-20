@@ -11,6 +11,7 @@ import AdminDashboard from './components/AdminDashboard'; // Import Admin Compon
 import { useCreditSystem } from './hooks/useCreditSystem';
 import { useInactivityTimer } from './hooks/useInactivityTimer';
 import { API_BASE_URL } from './config';
+import { resizeImage } from './utils/imageUtils';
 
 const stripePromise = loadStripe((import.meta as any).env.VITE_STRIPE_PUBLISHABLE_KEY);
 
@@ -640,25 +641,37 @@ const App: React.FC = () => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (ev) => {
-        const dataUrl = ev.target?.result as string;
-        setReferenceImage(dataUrl);
-        localStorage.setItem('aura_reference_image', dataUrl);
+      reader.onload = async (ev) => {
+        const rawDataUrl = ev.target?.result as string;
+        try {
+          // Optimization: Compress to 1024px to prevent "Failed to fetch" and localStorage overflow
+          const dataUrl = await resizeImage(rawDataUrl, 1024);
 
-        // Auto-select Edit style
-        const editStyle = STYLE_PRESETS.find(s => s.id === 'edit');
-        if (editStyle) {
-          setActiveStyle(editStyle);
-          localStorage.setItem('aura_last_style', 'edit');
+          setReferenceImage(dataUrl);
+          localStorage.setItem('aura_reference_image', dataUrl);
+
+          // Auto-select Edit style
+          const editStyle = STYLE_PRESETS.find(s => s.id === 'edit');
+          if (editStyle) {
+            setActiveStyle(editStyle);
+            localStorage.setItem('aura_last_style', 'edit');
+          }
+
+          setSavedSketch(null); // Clear previous drawing
+          localStorage.removeItem('aura_sketch_backup'); // Clear persistent backup
+          currentSketchRef.current = null;
+          setViewState({ scale: 1, offset: { x: 0, y: 0 } });
+          setCanvasKey(k => k + 1);
+          setStyleResult(null);
+          setPencilResult(null);
+
+          // CRITICAL: Trigger generation immediately with the new image
+          // Pass the dataUrl directly as imageOverride to bypass async state delay
+          handleGenerate("", editStyle || undefined, false, dataUrl);
+        } catch (err) {
+          console.error("Image processing failed:", err);
+          setApiError("Failed to process image. Try a smaller file.");
         }
-
-        setSavedSketch(null); // Clear previous drawing
-        localStorage.removeItem('aura_sketch_backup'); // Clear persistent backup
-        currentSketchRef.current = null;
-        setViewState({ scale: 1, offset: { x: 0, y: 0 } });
-        setCanvasKey(k => k + 1);
-        setStyleResult(null);
-        setPencilResult(null);
       };
       reader.readAsDataURL(file);
     }
@@ -686,10 +699,11 @@ const App: React.FC = () => {
   };
 
   // --- CORE GENERATION LOGIC ---
-  // Added styleOverride to allow immediate generation with the selected style before state updates
-  const handleGenerate = useCallback(async (sketchData: string, styleOverride?: StylePreset, ignorePaused = false) => {
+  // Added imageOverride to support immediate generation before state commit
+  const handleGenerate = useCallback(async (sketchData: string, styleOverride?: StylePreset, ignorePaused = false, imageOverride?: string | null) => {
     const effectiveSketch = sketchData || currentSketchRef.current || "";
-    if (!effectiveSketch && !referenceImage) return;
+    const effectiveImage = imageOverride !== undefined ? imageOverride : referenceImage;
+    if (!effectiveSketch && !effectiveImage) return;
 
     // Safety: If paused or out of credit time, or visitor, do NOT generate
     if ((isRealTimePaused && !ignorePaused) || auraCreditTime <= 0 || userTier === 'visitor') return;
@@ -723,7 +737,7 @@ const App: React.FC = () => {
         prompt: combinedPrompt,
         negativePrompt: globalNegative,
         aspectRatio,
-        referenceImage: referenceImage || undefined,
+        referenceImage: (effectiveImage as string) || undefined,
         model: selectedModel
       };
 
