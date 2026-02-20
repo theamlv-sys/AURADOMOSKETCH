@@ -747,7 +747,7 @@ const App: React.FC = () => {
       // CRITICAL: Global Transformation Logic
       // If we have a reference image and we are NOT in 'edit' mode, we MUST force the AI to transform the style.
       if (effectiveImage && currentStyle?.id !== 'edit') {
-        effectivePrompt = `GLOBAL TRANSFORMATION: Redraw the entire reference image using exactly this style: ${effectivePrompt}. MANDATORY: Completely overwrite the original photographic or realistic style with this new aesthetic. DO NOT PRESERVE the original style.`;
+        effectivePrompt = `STRICT_TRANSFORMATION: Redraw the entire reference image using exactly this style: ${effectivePrompt}. MANDATORY: ERASE and OVERWRITE the original photographic or realistic style. Use the photo ONLY for composition and structure. The final output must be 100% ${currentStyle?.name || 'the selected style'}.`;
       }
       const pencilStyle = STYLE_PRESETS.find(s => s.id === 'pencil')?.prompt || "Graphite pencil sketch.";
 
