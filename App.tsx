@@ -20,7 +20,7 @@ const STYLE_PRESETS: StylePreset[] = [
   { id: 'cartoon_mix', name: 'Cartoon Mix', prompt: 'Flat 2D TV cartoon show. NO REALISM. NO PHOTOGRAPHY. Convert the ENTIRE image (subjects AND background) into a colorful flat 2D cartoon drawing with bold outlines.', thumbnail: '📺' },
   { id: 'bighead', name: 'Big Head Mode', prompt: '3D Pixar caricature. NO REALISM. Morph the EXISTING people in the photo to have a massive 5x sized head, tiny micro body, and giant feet. DO NOT add new people or extra heads.', thumbnail: '🦒' },
   { id: 'aura', name: 'Aura', prompt: 'STRICT_LOCKDOWN: SIGNATURE AURA ART. High-fidelity 3D-Illustrative hybrid. MANDATORY: Glowing edges, ethereal lighting, smooth stylized surfaces. FORBIDDEN: Photorealism, natural lighting.', thumbnail: '✨' },
-  { id: 'anime', name: 'Anime', prompt: 'Flat 2D Anime TV show. NO REALISM. NO PHOTOGRAPHY. Convert all humans into 2D cel-shaded anime characters with completely flat colors and sharp ink outlines.', thumbnail: '🍱' },
+  { id: 'anime', name: 'Anime', prompt: 'High-budget 2026 Anime TV show. Flawless 2D digital animation. NO REALISM. NO PHOTOGRAPHY. Convert all humans into stunning, highly detailed 2D cel-shaded anime characters with sharp ink outlines, cinematic lighting, and flat vibrant colors.', thumbnail: '🍱' },
   { id: 'manga', name: 'Manga Art', prompt: 'STRICT_LOCKDOWN: INK MANGA. Traditional B&W pen work. MANDATORY: Screen-tones, speed lines, deep black ink pools. FORBIDDEN: Color, realistic shading.', thumbnail: '📖' },
   { id: 'cine', name: 'Cinematic', prompt: 'STRICT_LOCKDOWN: CINEMATIC PHOTOGRAPHY. Film-look. MANDATORY: 35mm grain, teal/orange grading, anamorphic flares. FORBIDDEN: Illustration, 3D renders.', thumbnail: '🎬' },
   { id: 'cyber', name: 'Cyberpunk', prompt: '2D Cyberpunk Anime Cartoon. Flat cel-shaded colors, heavy neon outlines. NO REALISM. NO PHOTOGRAPHY. Convert all humans into highly stylized 2D comic characters with tech glowing gear.', thumbnail: '🌆' },
@@ -39,7 +39,7 @@ const STYLE_PRESETS: StylePreset[] = [
   { id: 'vapor', name: 'Vaporwave', prompt: 'STRICT_LOCKDOWN: VAPORWAVE AESTHETIC. 80s retro-futurism. MANDATORY: Pink/purple hues, glitch effects. FORBIDDEN: Modern bleakness, realism.', thumbnail: '🌴' },
   { id: 'neonink', name: 'Neon Ink', prompt: 'STRICT_LOCKDOWN: LUMINOUS INK. Radiant lines. MANDATORY: Glowing black ink, electric cyan/magenta paths. FORBIDDEN: Standard lighting.', thumbnail: '✒️' },
   { id: 'retrocomic', name: 'Retro Comic', prompt: 'STRICT_LOCKDOWN: VINTAGE COMIC. Printed pulp. MANDATORY: Benday dots, action lines, aged paper yellowing. FORBIDDEN: 3D renders, photorealism.', thumbnail: '📰' },
-  { id: 'claymation', name: 'Claymation', prompt: 'Extremely crude chunky Play-Doh claymation. NO REALISM. NO PHOTOGRAPHY. NO SKIN. NO FABRIC. Convert absolutely everything into solid blobs of brightly-colored modeling clay. Humans MUST have blank clay blobs for faces.', thumbnail: '🧸' }
+  { id: 'claymation', name: 'Claymation', prompt: 'High-end stop-motion Claymation diorama. NO REALISM. NO REAL HUMAN FACES. Convert all human heads into solid, smooth, brightly-colored clay spheres with simple dot-eyes and no nose. NO REAL SKIN. Clothes must look like physical, tangible painted modeling clay. Miniature studio lighting.', thumbnail: '🧸' }
 ];
 
 const COLORS = ['#000000', '#FFFFFF', '#FF3B30', '#FF9500', '#FFCC00', '#34C759', '#007AFF', '#5856D6', '#AF52DE'];
