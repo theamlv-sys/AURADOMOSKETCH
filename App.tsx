@@ -16,7 +16,7 @@ import { resizeImage } from './utils/imageUtils';
 const stripePromise = loadStripe((import.meta as any).env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const STYLE_PRESETS: StylePreset[] = [
-  { id: 'edit', name: 'Edit', prompt: 'STRICT_LOCKDOWN: SEAMLESS IMAGE EDIT. MANDATORY: Preserve the exact style, lighting, and textures of the uploaded reference image. Blend the user\'s sketch naturally into the scene. FORBIDDEN: Changing the original image\'s artistic style or medium.', thumbnail: '🛠️' },
+  { id: 'edit', name: 'Edit', prompt: 'Pure Image Edit. DO NOT CHANGE THE STYLE. Keep the exact same style, lighting, and textures of the uploaded image. You are an expert photo editor. Follow the user\'s written instructions and drawn sketch EXACTLY. If they ask to remove a circled item, remove it completely and blend the background perfectly.', thumbnail: '🛠️' },
   { id: 'toon_world', name: 'Toon World', prompt: 'Flat 2D adult animation TV show. NO REALISM. NO PHOTOGRAPHY. Convert the ENTIRE image into a sharp 2D animated cartoon drawing with bold outlines. Aesthetic is a perfect hybrid of adult sci-fi cartoon precision, iconic yellow-tinted sitcom characters, and sharp urban vector animation. Flat vibrant colors, clean 2D lines.', thumbnail: '🛹' },
   { id: 'nextgen', name: 'Next Gen Gaming', prompt: 'High-end open-world crime video game cover art. Stylized digital painting, heavy contrast, vibrant saturated colors, bold stylized realism. NO PHOTOGRAPHY. Looks exactly like a modern cinematic video game loading screen with thick shading and painted textures.', thumbnail: '🚘' },
   { id: 'cartoon_mix', name: 'Cartoon Mix', prompt: 'Flat 2D TV cartoon show. NO REALISM. NO PHOTOGRAPHY. Convert the ENTIRE image (subjects AND background) into a colorful flat 2D cartoon drawing with bold outlines.', thumbnail: '📺' },
@@ -747,9 +747,13 @@ const App: React.FC = () => {
       let effectivePrompt = currentStyle?.prompt || activeStyle?.prompt || "A high quality drawing";
 
       // CRITICAL: Global Transformation Logic
-      // If we have a reference image and we are NOT in 'edit' mode, we MUST force the AI to transform the style.
-      if (effectiveImage && currentStyle?.id !== 'edit') {
-        effectivePrompt = `CRITICAL OVERRIDE: Redraw this exact image as a BRAND NEW artwork. Destroy all original photorealism. TARGET STYLE: ${effectivePrompt}`;
+      // If we have a reference image, we apply strict overrides based on mode
+      if (effectiveImage) {
+        if (currentStyle?.id === 'edit') {
+          effectivePrompt = `CRITICAL OVERRIDE: ${effectivePrompt}`;
+        } else {
+          effectivePrompt = `CRITICAL OVERRIDE: Redraw this exact image as a BRAND NEW artwork. Destroy all original photorealism. TARGET STYLE: ${effectivePrompt}`;
+        }
       }
       const pencilStyle = STYLE_PRESETS.find(s => s.id === 'pencil')?.prompt || "Graphite pencil sketch.";
 
