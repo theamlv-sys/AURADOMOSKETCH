@@ -11,7 +11,7 @@ import AdminDashboard from './components/AdminDashboard'; // Import Admin Compon
 import { useCreditSystem } from './hooks/useCreditSystem';
 import { useInactivityTimer } from './hooks/useInactivityTimer';
 import { API_BASE_URL } from './config';
-import { resizeImage } from './utils/imageUtils';
+import { resizeImage, cropToBase64AspectRatio } from './utils/imageUtils';
 
 const stripePromise = loadStripe((import.meta as any).env.VITE_STRIPE_PUBLISHABLE_KEY);
 
@@ -581,6 +581,17 @@ const App: React.FC = () => {
       }
       else {
         throw new Error("Unknown URL format");
+      }
+
+      // STRICT ASPECT RATIO ENFORCEMENT:
+      // Even if the AI ignored the aspect ratio prompt (common in image-to-image),
+      // force the final downloaded image into the exactly selected dimensions.
+      if (type === 'image') {
+        base64Data = await cropToBase64AspectRatio(base64Data, aspectRatio);
+        // Remove the data URI prefix if returned by cropToBase64AspectRatio
+        if (base64Data.startsWith('data:')) {
+          base64Data = base64Data.split(',')[1];
+        }
       }
 
       // Get file from server with proper headers
