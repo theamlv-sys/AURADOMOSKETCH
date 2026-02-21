@@ -39,7 +39,7 @@ const STYLE_PRESETS: StylePreset[] = [
   { id: 'vapor', name: 'Vaporwave', prompt: 'STRICT_LOCKDOWN: VAPORWAVE AESTHETIC. 80s retro-futurism. MANDATORY: Pink/purple hues, glitch effects. FORBIDDEN: Modern bleakness, realism.', thumbnail: '🌴' },
   { id: 'neonink', name: 'Neon Ink', prompt: 'STRICT_LOCKDOWN: LUMINOUS INK. Radiant lines. MANDATORY: Glowing black ink, electric cyan/magenta paths. FORBIDDEN: Standard lighting.', thumbnail: '✒️' },
   { id: 'retrocomic', name: 'Retro Comic', prompt: 'STRICT_LOCKDOWN: VINTAGE COMIC. Printed pulp. MANDATORY: Benday dots, action lines, aged paper yellowing. FORBIDDEN: 3D renders, photorealism.', thumbnail: '📰' },
-  { id: 'claymation', name: 'Claymation', prompt: 'STRICT_LOCKDOWN: BRIGHT CLAYMATION. Tangible plasticine. MANDATORY: Visible thumbprints, mold marks, vibrant highly-pigmented clay colors, stop-motion lighting. FORBIDDEN: Realistic human faces, photographic skin, realistic eyes, 2D linework.', thumbnail: '🧸' }
+  { id: 'claymation', name: 'Claymation', prompt: 'STRICT_LOCKDOWN: AARDMAN STOP-MOTION CLAYMATION. Play-Doh Diorama. MANDATORY: Entire scene MUST be constructed from chunky, vibrant sculpted modeling clay. Extremely visible thumbprints, smudges, and physical imperfections. Cute exaggerated cartoon proportions with simple molded faces or dot-eyes. Miniature studio lighting with glossy reflections on the plasticine. FORBIDDEN: Any realism, human skin, actual human faces, realistic clothing textures, 2D linework, photography.', thumbnail: '🧸' }
 ];
 
 const COLORS = ['#000000', '#FFFFFF', '#FF3B30', '#FF9500', '#FFCC00', '#34C759', '#007AFF', '#5856D6', '#AF52DE'];
