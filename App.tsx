@@ -747,7 +747,9 @@ const App: React.FC = () => {
       // CRITICAL: Global Transformation Logic
       // If we have a reference image and we are NOT in 'edit' mode, we MUST force the AI to transform the style.
       if (effectiveImage && currentStyle?.id !== 'edit') {
-        effectivePrompt = `STRICT_STYLE_OVERWRITE: Redraw the entire reference image using exactly this style: ${effectivePrompt}. MANDATORY: IGNORE the original photographic aesthetics. DISREGARD the original colors, lighting, and textures. RECONSTRUCT the scene from scratch in the target style while using the photo ONLY for structural placement. The final output must be PURE ${currentStyle?.name || 'the selected style'} with ZERO realistic bleed.`;
+        effectivePrompt = `CRITICAL INSTRUCTION: Generate a BRAND NEW artwork from scratch. DO NOT simply edit the photo. You MUST deeply analyze the visual contents of the reference photo, and then recreate that exact scene entirely in the TARGET AESTHETIC. The original photo is for composition ONLY.
+TARGET AESTHETIC: ${effectivePrompt}
+MANDATORY: You must COMPLETELY ABANDON photorealism. No real human skin, no real human faces, no original photo textures. The final image must be 100% pure to the target aesthetic.`;
       }
       const pencilStyle = STYLE_PRESETS.find(s => s.id === 'pencil')?.prompt || "Graphite pencil sketch.";
 
