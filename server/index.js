@@ -80,8 +80,9 @@ app.post('/api/generate-art', async (req, res) => {
         let userInstructions = config.prompt || 'Execute a total stylistic transformation of the entire frame.';
 
         // If both reference image and sketch are provided, add explicit merge instruction
-        // We removed "maintaining the style" to allow for total stylistic transformation in creative modes.
-        if (config.referenceImage && sketchBase64) {
+        // We bypass this for 'edit' mode because edit mode needs pure inpainting instructions
+        // as defined by the Google Docs template, without generic 'merge sketch' commands interfering.
+        if (config.referenceImage && sketchBase64 && config.styleId !== 'edit') {
             userInstructions = `Merge and blend the drawn sketch elements naturally into the reference photo scene. ${userInstructions}`;
         }
 

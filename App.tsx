@@ -16,7 +16,7 @@ import { resizeImage } from './utils/imageUtils';
 const stripePromise = loadStripe((import.meta as any).env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const STYLE_PRESETS: StylePreset[] = [
-  { id: 'edit', name: 'Edit', prompt: 'Pure Image Edit. DO NOT CHANGE THE STYLE. Keep the exact same style, lighting, and textures of the uploaded image. You are an expert photo editor. Follow the user\'s written instructions and drawn sketch EXACTLY. If they ask to remove a circled item, remove it completely and blend the background perfectly.', thumbnail: '🛠️' },
+  { id: 'edit', name: 'Edit', prompt: 'Using the provided image and sketch mask, change ONLY the specific elements requested by the user. Keep everything else in the image exactly the same, preserving the original style, lighting, and composition. If the user asks to remove an item, remove it completely and inpaint the background perfectly.', thumbnail: '🛠️' },
   { id: 'toon_world', name: 'Toon World', prompt: 'Flat 2D adult animation TV show. NO REALISM. NO PHOTOGRAPHY. Convert the ENTIRE image into a sharp 2D animated cartoon drawing with bold outlines. Aesthetic is a perfect hybrid of adult sci-fi cartoon precision, iconic yellow-tinted sitcom characters, and sharp urban vector animation. Flat vibrant colors, clean 2D lines.', thumbnail: '🛹' },
   { id: 'nextgen', name: 'Next Gen Gaming', prompt: 'High-end open-world crime video game cover art. Stylized digital painting, heavy contrast, vibrant saturated colors, bold stylized realism. NO PHOTOGRAPHY. Looks exactly like a modern cinematic video game loading screen with thick shading and painted textures.', thumbnail: '🚘' },
   { id: 'cartoon_mix', name: 'Cartoon Mix', prompt: 'Flat 2D TV cartoon show. NO REALISM. NO PHOTOGRAPHY. Convert the ENTIRE image (subjects AND background) into a colorful flat 2D cartoon drawing with bold outlines.', thumbnail: '📺' },
@@ -740,6 +740,7 @@ const App: React.FC = () => {
         negativePrompt: globalNegative,
         aspectRatio,
         referenceImage: (effectiveImage as string) || undefined,
+        styleId: currentStyle?.id,
         model: selectedModel
       };
 

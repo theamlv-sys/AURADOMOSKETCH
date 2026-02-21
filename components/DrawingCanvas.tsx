@@ -276,7 +276,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
           <div className={`absolute inset-0 ${backgroundImage ? 'bg-transparent' : 'bg-white'}`} />
           {backgroundImage && (
             <div
-              className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-300"
+              className="absolute inset-0 bg-contain bg-center bg-no-repeat transition-opacity duration-300"
               style={{ backgroundImage: `url(${backgroundImage})` }}
             />
           )}

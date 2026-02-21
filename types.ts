@@ -36,6 +36,7 @@ export interface GenerationConfig {
   negativePrompt: string;
   aspectRatio: "1:1" | "3:4" | "4:3" | "9:16" | "16:9";
   stylePreset?: string;
+  styleId?: string;
   referenceImage?: string;
   model?: string;
   modelMode?: ModelMode;
