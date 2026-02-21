@@ -128,9 +128,15 @@ NEGATIVE CONSTRAINTS: ${config.negativePrompt || ''}, low resolution, artifacts,
         console.log('[Image Gen] Calling ai.models.generateContent...');
 
         // Use the CORRECT API method from official Google documentation
+        // Map UI aspect ratios to Gemini accepted formats (1:1, 3:4, 4:3, 9:16, 16:9)
+        const geminiAspectRatio = config.aspectRatio || '1:1';
+
         const response = await ai.models.generateContent({
             model: config.model || 'gemini-2.5-flash-image',
             contents: contents,
+            config: {
+                aspectRatio: geminiAspectRatio,
+            }
         });
 
         console.log('[Image Gen] Response received, checking parts...');
