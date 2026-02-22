@@ -759,12 +759,14 @@ const App: React.FC = () => {
       let effectivePrompt = currentStyle?.prompt || activeStyle?.prompt || "A high quality drawing";
 
       // CRITICAL: Global Transformation Logic
-      // If we have a reference image, we apply strict overrides based on mode
-      if (effectiveImage) {
+      // If we have a reference image OR a drawn sketch, we apply strict overrides based on mode
+      // This ensures that even if you just draw a stick figure from scratch, the ENTIRE canvas
+      // is rendered in the selected style, rather than just stylizing the drawing line itself.
+      if (effectiveImage || effectiveSketch) {
         if (currentStyle?.id === 'edit') {
           effectivePrompt = `CRITICAL OVERRIDE: ${effectivePrompt}`;
         } else {
-          effectivePrompt = `CRITICAL OVERRIDE: Redraw this exact image as a BRAND NEW artwork. Destroy all original photorealism. TARGET STYLE: ${effectivePrompt}`;
+          effectivePrompt = `CRITICAL OVERRIDE: Redraw this entire composition as a BRAND NEW artwork. Destroy all original photorealism or blank space. TARGET STYLE: ${effectivePrompt}. Generate the entire frame in this style.`;
         }
       }
       const pencilStyle = STYLE_PRESETS.find(s => s.id === 'pencil')?.prompt || "Graphite pencil sketch.";
