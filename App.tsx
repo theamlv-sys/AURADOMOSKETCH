@@ -1487,6 +1487,17 @@ const App: React.FC = () => {
       <main className="flex-1 flex overflow-hidden relative">
         {isSidebarOpen && <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[85] lg:hidden" onClick={() => setIsSidebarOpen(false)} />}
         <aside className={`fixed inset-y-0 left-0 w-[280px] md:w-[300px] border-r transition-all duration-500 z-[90] flex flex-col p-6 md:p-8 gap-6 md:gap-8 overflow-y-auto no-scrollbar lg:relative ${theme === 'dark' ? 'bg-[#080808] border-white/5 shadow-2xl' : 'bg-white border-slate-100 shadow-sm'} ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:-ml-[300px] opacity-0 pointer-events-none'}`}>
+          {/* Mobile Model Toggle */}
+          {userTier !== 'designer' && userTier !== 'visitor' && (
+            <section className="md:hidden">
+              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-500 mb-4">AI Engine</h3>
+              <div className={`grid grid-cols-2 gap-2 p-1 rounded-2xl border ${theme === 'dark' ? 'bg-black/50 border-white/5' : 'bg-slate-100 border-slate-200'}`}>
+                <button onClick={() => setModelMode('standard')} className={`py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${modelMode === 'standard' ? (theme === 'dark' ? 'bg-white/10 text-white' : 'bg-white text-slate-900 shadow-sm') : 'text-slate-400'}`}>Standard</button>
+                <button onClick={() => setModelMode('pro')} className={`py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${modelMode === 'pro' ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/30' : 'text-slate-400'}`}>Pro</button>
+              </div>
+            </section>
+          )}
+
           <section>
             <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-500 mb-6">Canvas Ratio</h3>
             <div className="flex flex-wrap gap-2">
