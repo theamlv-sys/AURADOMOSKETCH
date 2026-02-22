@@ -43,7 +43,7 @@ export interface GenerationConfig {
   outputResolution?: string; // '1K' | '2K' | '4K'
 }
 
-export type VideoMode = 'interpolation' | 'reference';
+export type VideoMode = 'interpolation' | 'reference' | 'image';
 export type VideoResolution = '720p' | '1080p' | '4K'; // Added 4K support
 
 export interface VideoGenerationConfig {

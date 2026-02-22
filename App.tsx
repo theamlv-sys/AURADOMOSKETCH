@@ -20,7 +20,7 @@ const STYLE_PRESETS: StylePreset[] = [
   { id: 'toon_world', name: 'Toon World', prompt: 'Flat 2D adult animation TV show. NO REALISM. NO PHOTOGRAPHY. Convert the ENTIRE image into a sharp 2D animated cartoon drawing with bold outlines. Aesthetic is a perfect hybrid of adult sci-fi cartoon precision, iconic yellow-tinted sitcom characters, and sharp urban vector animation. Flat vibrant colors, clean 2D lines.', thumbnail: '🛹' },
   { id: 'nextgen', name: 'Next Gen Gaming', prompt: 'High-end open-world crime video game cover art. Stylized digital painting, heavy contrast, vibrant saturated colors, bold stylized realism. NO PHOTOGRAPHY. Looks exactly like a modern cinematic video game loading screen with thick shading and painted textures.', thumbnail: '🚘' },
   { id: 'cartoon_mix', name: 'Cartoon Mix', prompt: 'Flat 2D TV cartoon show. NO REALISM. NO PHOTOGRAPHY. Convert the ENTIRE image (subjects AND background) into a colorful flat 2D cartoon drawing with bold outlines.', thumbnail: '📺' },
-  { id: 'bighead', name: 'Big Head Mode', prompt: '3D Pixar caricature. NO REALISM. Morph the EXISTING people in the photo to have a massive 5x sized head, tiny micro body, and giant feet. DO NOT add new people or extra heads.', thumbnail: '🦒' },
+  { id: 'bighead', name: 'Big Head Mode', prompt: '3D Pixar cartoon caricature. NO REALISM. NO PHOTOGRAPHY. Convert the ENTIRE environment and background into a stylized 3D cartoon. Convert EVERY person into a perfect 3D cartoon caricature with a massive 5x sized head, a tiny micro body, and giant feet. DO NOT leave the original photorealistic person behind. DO NOT duplicate people. Everything must be a 100% 3D cartoon.', thumbnail: '🦒' },
   { id: 'aura', name: 'Aura', prompt: 'STRICT_LOCKDOWN: SIGNATURE AURA ART. High-fidelity 3D-Illustrative hybrid. MANDATORY: Glowing edges, ethereal lighting, smooth stylized surfaces. FORBIDDEN: Photorealism, natural lighting.', thumbnail: '✨' },
   { id: 'anime', name: 'Anime', prompt: 'Authentic 2D Japanese Anime TV Show. Cool, dynamic anime style. NO REALISM. NO PHOTOGRAPHY. Convert all humans into cool, authentic 2D Japanese anime characters with sharp ink outlines and flat cel-shaded colors.', thumbnail: '🍱' },
   { id: 'manga', name: 'Manga Art', prompt: 'STRICT_LOCKDOWN: INK MANGA. Traditional B&W pen work. MANDATORY: Screen-tones, speed lines, deep black ink pools. FORBIDDEN: Color, realistic shading.', thumbnail: '📖' },
@@ -41,7 +41,7 @@ const STYLE_PRESETS: StylePreset[] = [
   { id: 'vapor', name: 'Vaporwave', prompt: 'STRICT_LOCKDOWN: VAPORWAVE AESTHETIC. 80s retro-futurism. MANDATORY: Pink/purple hues, glitch effects. FORBIDDEN: Modern bleakness, realism.', thumbnail: '🌴' },
   { id: 'neonink', name: 'Neon Ink', prompt: 'STRICT_LOCKDOWN: LUMINOUS INK. Radiant lines. MANDATORY: Glowing black ink, electric cyan/magenta paths. FORBIDDEN: Standard lighting.', thumbnail: '✒️' },
   { id: 'retrocomic', name: 'Retro Comic', prompt: 'STRICT_LOCKDOWN: VINTAGE COMIC. Printed pulp. MANDATORY: Benday dots, action lines, aged paper yellowing. FORBIDDEN: 3D renders, photorealism.', thumbnail: '📰' },
-  { id: 'claymation', name: 'Claymation', prompt: 'Turn every single inch of this exact image into colorful claymation. NO REALISM. Every real person MUST have a complete solid clay face with funny colored clay eyes and a clay mouth. The entire body and all clothes must be completely made of solid clay. EVERYTHING IS CLAY.', thumbnail: '🧸' }
+  { id: 'claymation', name: 'Claymation', prompt: 'High-end colorful stop-motion Claymation. NO REALISM. NO PHOTOGRAPHY. Convert the ENTIRE environment, background, and EVERY object into solid colorful modeling clay. Every real person MUST be entirely replaced by a colorful clay cartoon character with a solid clay face, clay eyes, and clay clothes. DO NOT leave any photorealistic humans behind. EVERYTHING IS 100% CLAY.', thumbnail: '🧸' }
 ];
 
 const COLORS = ['#000000', '#FFFFFF', '#FF3B30', '#FF9500', '#FFCC00', '#34C759', '#007AFF', '#5856D6', '#AF52DE'];
@@ -272,6 +272,14 @@ const App: React.FC = () => {
   const [dubSegments, setDubSegments] = useState<SpeechSegment[]>([]);
   const [isDubbing, setIsDubbing] = useState(false);
   const [syncedAudioUrl, setSyncedAudioUrl] = useState<string | null>(null);
+
+  // Image Mode State
+  const [imageModeImages, setImageModeImages] = useState<string[]>([]);
+  const [imageModePrompt, setImageModePrompt] = useState('');
+  const [imageModeResolution, setImageModeResolution] = useState<'1K' | '2K' | '4K'>('1K');
+  const [imageModeAspectRatio, setImageModeAspectRatio] = useState<GenerationConfig['aspectRatio']>('1:1');
+  const [imageModeLoading, setImageModeLoading] = useState(false);
+  const [generatedImageModeUrl, setGeneratedImageModeUrl] = useState<string | null>(null);
 
   const [viewState, setViewState] = useState({ scale: 1, offset: { x: 0, y: 0 } });
   const [canvasKey, setCanvasKey] = useState(0);
@@ -958,6 +966,54 @@ const App: React.FC = () => {
       console.error(err);
     } finally {
       setIsUpscaling(false);
+    }
+  };
+
+  // --- IMAGE MODE GENERATION ---
+  const handleImageModeGenerate = async () => {
+    if (!imageModePrompt.trim()) {
+      setApiError("Please enter a prompt to generate an image.");
+      return;
+    }
+
+    if (!userTier) return;
+    const isPro = modelMode === 'pro';
+    const cost = isPro ? BURN_RATES.IMAGE_GEN_PRO : BURN_RATES.IMAGE_GEN_STANDARD;
+
+    try {
+      deductCredits(cost); // Automatically checks and deducts
+      setImageModeLoading(true);
+      setApiError(null);
+
+      const response = await fetch('/api/generate-image-mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: imageModePrompt,
+          images: imageModeImages,
+          modelMode: modelMode,
+          aspectRatio: imageModeAspectRatio,
+          resolution: imageModeResolution
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.result) {
+        setGeneratedImageModeUrl(data.result);
+      } else {
+        throw new Error('No image returned from server');
+      }
+
+    } catch (err: any) {
+      if (err.message === "Insufficient Aura Credit Time") return;
+      setApiError(err.message || 'Failed to generate image');
+    } finally {
+      setImageModeLoading(false);
     }
   };
 
@@ -1919,8 +1975,15 @@ const App: React.FC = () => {
                   <span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] text-cyan-400">Video Studio</span>
                 </div>
                 <div className="w-full aspect-video bg-white/5 rounded-[1rem] md:rounded-[2rem] overflow-hidden border border-white/5 relative shadow-inner">
-                  {videoLoading || isDubbing ? (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-4 text-center"><div className="w-10 h-10 md:w-16 md:h-16 border-[3px] md:border-[4px] border-cyan-500 border-t-transparent rounded-full animate-spin" /><p className="text-white font-black uppercase text-[10px] md:text-[12px] tracking-widest animate-pulse">{videoStatus || 'Synthesizing...'}</p></div>
+                  {videoLoading || isDubbing || imageModeLoading ? (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-4 text-center"><div className={`w-10 h-10 md:w-16 md:h-16 border-[3px] md:border-[4px] ${imageModeLoading ? 'border-purple-500' : 'border-cyan-500'} border-t-transparent rounded-full animate-spin`} /><p className="text-white font-black uppercase text-[10px] md:text-[12px] tracking-widest animate-pulse">{imageModeLoading ? 'Generating Image...' : (videoStatus || 'Synthesizing...')}</p></div>
+                  ) : videoMode === 'image' && generatedImageModeUrl ? (
+                    <div className="w-full h-full relative p-2 md:p-4 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-black/20">
+                      <img src={generatedImageModeUrl} className="w-full h-full object-contain rounded-xl shadow-2xl" />
+                      <button onClick={() => handleDownload(generatedImageModeUrl, 'image')} className="absolute bottom-6 right-6 p-4 bg-black/50 hover:bg-black/80 backdrop-blur-xl rounded-2xl text-white transition-all shadow-2xl border border-white/20 group hover:scale-105 active:scale-95">
+                        <svg className="w-6 h-6 text-white/70 group-hover:text-purple-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                      </button>
+                    </div>
                   ) : generatedVideoUrl ? (
                     <div className="w-full h-full relative">
                       <video src={generatedVideoUrl} id="videoPlayer" controls autoPlay loop className="w-full h-full object-contain" />
@@ -1928,11 +1991,20 @@ const App: React.FC = () => {
                     </div>
                   ) : (
                     <div className="relative w-full h-full flex items-center justify-center group bg-[#050505] overflow-hidden">
-                      <div className="absolute inset-0 flex gap-1">
-                        {videoStartFrame && <img src={videoStartFrame} className={`h-full object-cover ${videoEndFrame ? 'w-1/2' : 'w-full'} opacity-40`} />}
-                        {videoEndFrame && <img src={videoEndFrame} className="w-1/2 h-full object-cover opacity-40" />}
-                      </div>
-                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.5em] text-white/40 text-center">Awaiting Synthesis</span></div>
+                      {videoMode === 'image' ? (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-32 h-32 rounded-full bg-gradient-to-tr from-purple-500/10 to-indigo-500/10 animate-pulse blur-3xl absolute" />
+                          <span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.5em] text-white/40 text-center relative z-10">Awaiting Imagination</span>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="absolute inset-0 flex gap-1">
+                            {videoStartFrame && <img src={videoStartFrame} className={`h-full object-cover ${videoEndFrame ? 'w-1/2' : 'w-full'} opacity-40`} />}
+                            {videoEndFrame && <img src={videoEndFrame} className="w-1/2 h-full object-cover opacity-40" />}
+                          </div>
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.5em] text-white/40 text-center">Awaiting Synthesis</span></div>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1955,112 +2027,188 @@ const App: React.FC = () => {
 
                 {!dubSegments.length ? (
                   <>
-                    <div className="flex p-1 bg-white/5 rounded-xl border border-white/5"><button onClick={() => setVideoMode('interpolation')} className={`flex-1 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${videoMode === 'interpolation' ? 'bg-cyan-500 text-white shadow-lg' : 'text-slate-500'}`}>Story Mode</button><button onClick={() => setVideoMode('reference')} className={`flex-1 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${videoMode === 'reference' ? 'bg-cyan-500 text-white shadow-lg' : 'text-slate-500'}`}>Vision Mode</button></div>
+                    <div className="flex p-1 bg-white/5 rounded-xl border border-white/5">
+                      <button onClick={() => setVideoMode('interpolation')} className={`flex-1 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${videoMode === 'interpolation' ? 'bg-cyan-500 text-white shadow-lg' : 'text-slate-500'}`}>Story Mode</button>
+                      <button onClick={() => setVideoMode('reference')} className={`flex-1 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${videoMode === 'reference' ? 'bg-cyan-500 text-white shadow-lg' : 'text-slate-500'}`}>Vision Mode</button>
+                      <button onClick={() => setVideoMode('image')} className={`flex-1 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${videoMode === 'image' ? 'bg-gradient-to-r from-purple-500 to-cyan-500 text-white shadow-lg shadow-cyan-500/20' : 'text-slate-500'}`}>Image Mode</button>
+                    </div>
 
-                    {videoMode === 'interpolation' && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-2">
-                          <span className="text-[8px] font-black uppercase text-white/40 tracking-widest">Start Frame</span>
-                          <label className="block aspect-video rounded-xl border border-dashed border-white/20 hover:border-cyan-400/50 cursor-pointer overflow-hidden relative bg-white/5 transition-all shadow-inner">
-                            {videoStartFrame ? (
-                              <img src={videoStartFrame} className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="absolute inset-0 flex items-center justify-center text-[10px] text-white/20 font-black">+ UPLOAD</div>
+                    {videoMode === 'image' ? (
+                      <div className="flex flex-col gap-5 mt-2">
+                        <section className="space-y-2">
+                          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400 flex items-center justify-between">
+                            Reference Images
+                            <span className="text-[8px] text-white/40">{imageModeImages.length} / {modelMode === 'pro' ? 5 : 3}</span>
+                          </h3>
+                          <div className="grid grid-cols-5 gap-2">
+                            {/* Render existing images */}
+                            {imageModeImages.map((img, idx) => (
+                              <div key={idx} className="relative aspect-square group">
+                                <img src={img} className="w-full h-full object-cover rounded-xl border border-white/10" />
+                                <button onClick={() => setImageModeImages(prev => prev.filter((_, i) => i !== idx))} className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 hover:bg-red-400 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                              </div>
+                            ))}
+                            {/* Render Add Button if under limit */}
+                            {imageModeImages.length < (modelMode === 'pro' ? 5 : 3) && (
+                              <label className="block aspect-square rounded-xl border border-dashed border-white/20 hover:border-cyan-400/50 cursor-pointer bg-white/5 transition-all flex flex-col items-center justify-center gap-1 group">
+                                <span className="text-[12px] text-white/30 group-hover:text-cyan-400 transition-colors">+</span>
+                                <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const reader = new FileReader();
+                                    reader.onload = (ev) => {
+                                      setImageModeImages(prev => [...prev, ev.target?.result as string]);
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }
+                                  e.target.value = '';
+                                }} />
+                              </label>
                             )}
-                            <input type="file" accept="image/*" onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const reader = new FileReader();
-                                reader.onload = (event) => setVideoStartFrame(event.target?.result as string);
-                                reader.readAsDataURL(file);
-                              }
-                            }} className="hidden" />
-                          </label>
-                        </div>
-                        <div className="space-y-2">
-                          <span className="text-[8px] font-black uppercase text-white/40 tracking-widest">End Frame</span>
-                          <label className="block aspect-video rounded-xl border border-dashed border-white/20 hover:border-cyan-400/50 cursor-pointer overflow-hidden relative bg-white/5 transition-all shadow-inner">
-                            {videoEndFrame ? (
-                              <img src={videoEndFrame} className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="absolute inset-0 flex items-center justify-center text-[10px] text-white/20 font-black">+ ADD</div>
-                            )}
-                            <input type="file" accept="image/*" onChange={handleEndFrameUpload} className="hidden" />
-                          </label>
-                        </div>
-                      </div>
-                    )}
+                          </div>
+                        </section>
 
-                    <section className="space-y-2">
-                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Quality Output</h3>
-                      <div className="grid grid-cols-3 gap-2">
-                        <button onClick={() => setVideoResolution('720p')} className={`py-2 rounded-lg border text-[9px] font-black ${videoResolution === '720p' ? 'bg-cyan-500 border-cyan-400 text-white' : 'border-white/10 text-slate-500'}`}>720p</button>
-                        <button onClick={() => setVideoResolution('1080p')} className={`py-2 rounded-lg border text-[9px] font-black ${videoResolution === '1080p' ? 'bg-cyan-500 border-cyan-400 text-white' : 'border-white/10 text-slate-500'} ${userTier === 'designer' ? 'opacity-30' : ''}`}>{userTier === 'designer' ? '🔒 1080p' : '1080p'}</button>
-                      </div>
-                    </section>
+                        <section className="space-y-4">
+                          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Creation Prompt</h3>
+                          <textarea value={imageModePrompt} onChange={(e) => setImageModePrompt(e.target.value)} placeholder="Describe the image you want to generate or exactly how you want to edit the uploaded reference images..." className="w-full h-24 bg-white/5 border border-white/10 rounded-xl p-4 text-[10px] font-medium text-white outline-none focus:border-cyan-500/50 transition-all resize-none shadow-inner" />
+                        </section>
 
-                    <section className="space-y-2">
-                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Aspect Ratio</h3>
-                      <div className="grid grid-cols-2 gap-2">
-                        <button onClick={() => setVideoAspectRatio('16:9')} className={`py-2.5 rounded-lg border text-[9px] font-black flex items-center justify-center gap-2 ${videoAspectRatio === '16:9' ? 'bg-cyan-500 border-cyan-400 text-white' : 'border-white/10 text-slate-500 hover:border-white/20'}`}>
-                          <span className="w-6 h-4 border-2 border-current rounded-sm"></span>
-                          Landscape
-                        </button>
-                        <button onClick={() => setVideoAspectRatio('9:16')} className={`py-2.5 rounded-lg border text-[9px] font-black flex items-center justify-center gap-2 ${videoAspectRatio === '9:16' ? 'bg-cyan-500 border-cyan-400 text-white' : 'border-white/10 text-slate-500 hover:border-white/20'}`}>
-                          <span className="w-4 h-6 border-2 border-current rounded-sm"></span>
-                          Portrait
-                        </button>
-                      </div>
-                    </section>
+                        <section className="space-y-2">
+                          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Aspect Ratio</h3>
+                          <div className="grid grid-cols-5 gap-2">
+                            {['1:1', '16:9', '9:16', '4:3', '3:4'].map(ratio => (
+                              <button key={ratio} onClick={() => setImageModeAspectRatio(ratio as any)} className={`py-2 rounded-lg border text-[9px] font-black flex items-center justify-center ${imageModeAspectRatio === ratio ? 'bg-gradient-to-r from-purple-500 to-cyan-500 border-transparent text-white' : 'border-white/10 text-slate-500 hover:border-white/20'}`}>
+                                {ratio}
+                              </button>
+                            ))}
+                          </div>
+                        </section>
 
-                    {videoMode === 'reference' && (
-                      <section className="space-y-2">
-                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Reference Images <span className="text-white/30">(up to 3)</span></h3>
-                        <div className="grid grid-cols-3 gap-2">
-                          {[0, 1, 2].map((index) => (
-                            <div key={index} className="relative aspect-square">
-                              {videoIngredients[index] ? (
-                                <div className="relative w-full h-full group">
-                                  <img src={videoIngredients[index]} className="w-full h-full object-cover rounded-xl border border-white/10" />
-                                  <button
-                                    onClick={() => setVideoIngredients(prev => prev.filter((_, i) => i !== index))}
-                                    className="absolute top-1 right-1 w-5 h-5 bg-red-500/80 hover:bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                  >
-                                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                  </button>
-                                </div>
-                              ) : (
-                                <label className="block w-full h-full rounded-xl border border-dashed border-white/20 hover:border-cyan-400/50 cursor-pointer bg-white/5 transition-all flex items-center justify-center">
-                                  <span className="text-[10px] text-white/30 font-black">+ ADD</span>
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0];
-                                      if (file && videoIngredients.length < 3) {
-                                        const reader = new FileReader();
-                                        reader.onload = (ev) => {
-                                          const result = ev.target?.result as string;
-                                          setVideoIngredients(prev => [...prev, result]);
-                                        };
-                                        reader.readAsDataURL(file);
-                                      }
-                                      e.target.value = '';
-                                    }}
-                                  />
-                                </label>
-                              )}
+                        {modelMode === 'pro' && (
+                          <section className="space-y-2">
+                            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Pro Resolution</h3>
+                            <div className="grid grid-cols-3 gap-2">
+                              {['1K', '2K', '4K'].map(res => (
+                                <button key={res} onClick={() => setImageModeResolution(res as any)} className={`py-2 rounded-lg border text-[9px] font-black flex items-center justify-center ${imageModeResolution === res ? 'bg-gradient-to-r from-purple-500 to-cyan-500 border-transparent text-white' : 'border-white/10 text-slate-500 hover:border-white/20'}`}>
+                                  {res}
+                                </button>
+                              ))}
                             </div>
-                          ))}
-                        </div>
-                        <p className="text-[8px] text-white/30">Add reference images to guide your video's style and content</p>
-                      </section>
-                    )}
+                          </section>
+                        )}
+                        <button onClick={handleImageModeGenerate} disabled={imageModeLoading} className={`w-full py-4 rounded-xl font-black uppercase text-[10px] tracking-[0.3em] transition-all shadow-xl mt-4 ${imageModeLoading ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-gradient-to-r from-purple-600 to-cyan-600 text-white hover:from-purple-500 hover:to-cyan-500 active:scale-95 shadow-cyan-500/20'}`}>{imageModeLoading ? 'Generating...' : 'Generate Image'}</button>
+                        <button onClick={() => setIsVideoStudioOpen(false)} className="w-full py-2 text-[9px] font-black uppercase tracking-[0.4em] text-slate-600 hover:text-white transition-all">Back to Home</button>
+                      </div>
+                    ) : (
+                      <>
+                        {videoMode === 'interpolation' && (
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                              <span className="text-[8px] font-black uppercase text-white/40 tracking-widest">Start Frame</span>
+                              <label className="block aspect-video rounded-xl border border-dashed border-white/20 hover:border-cyan-400/50 cursor-pointer overflow-hidden relative bg-white/5 transition-all shadow-inner">
+                                {videoStartFrame ? (
+                                  <img src={videoStartFrame} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="absolute inset-0 flex items-center justify-center text-[10px] text-white/20 font-black">+ UPLOAD</div>
+                                )}
+                                <input type="file" accept="image/*" onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const reader = new FileReader();
+                                    reader.onload = (event) => setVideoStartFrame(event.target?.result as string);
+                                    reader.readAsDataURL(file);
+                                  }
+                                }} className="hidden" />
+                              </label>
+                            </div>
+                            <div className="space-y-2">
+                              <span className="text-[8px] font-black uppercase text-white/40 tracking-widest">End Frame</span>
+                              <label className="block aspect-video rounded-xl border border-dashed border-white/20 hover:border-cyan-400/50 cursor-pointer overflow-hidden relative bg-white/5 transition-all shadow-inner">
+                                {videoEndFrame ? (
+                                  <img src={videoEndFrame} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="absolute inset-0 flex items-center justify-center text-[10px] text-white/20 font-black">+ ADD</div>
+                                )}
+                                <input type="file" accept="image/*" onChange={handleEndFrameUpload} className="hidden" />
+                              </label>
+                            </div>
+                          </div>
+                        )}
 
-                    <section className="space-y-4"><h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Atmosphere Directives</h3><textarea value={videoPrompt} onChange={(e) => setVideoPrompt(e.target.value)} placeholder="Describe the cinematic action..." className="w-full h-24 md:h-20 bg-white/5 border border-white/10 rounded-xl p-4 text-[10px] font-medium text-white outline-none focus:border-cyan-500/50 transition-all resize-none shadow-inner" /></section>
-                    <button onClick={handleGenerateVideo} disabled={videoLoading} className={`w-full py-3 md:py-4 rounded-xl font-black uppercase text-[9px] md:text-[10px] tracking-[0.3em] transition-all shadow-xl ${videoLoading ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-cyan-500 text-white hover:bg-cyan-600 active:scale-95'}`}>{videoLoading ? 'Crafting...' : 'Synthesize Motion'}</button>
-                    <button onClick={() => setIsVideoStudioOpen(false)} className="w-full py-3 text-[9px] font-black uppercase tracking-[0.4em] text-slate-600 hover:text-white transition-all">Back to Home</button>
+                        <section className="space-y-2">
+                          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Quality Output</h3>
+                          <div className="grid grid-cols-3 gap-2">
+                            <button onClick={() => setVideoResolution('720p')} className={`py-2 rounded-lg border text-[9px] font-black ${videoResolution === '720p' ? 'bg-cyan-500 border-cyan-400 text-white' : 'border-white/10 text-slate-500'}`}>720p</button>
+                            <button onClick={() => setVideoResolution('1080p')} className={`py-2 rounded-lg border text-[9px] font-black ${videoResolution === '1080p' ? 'bg-cyan-500 border-cyan-400 text-white' : 'border-white/10 text-slate-500'} ${userTier === 'designer' ? 'opacity-30' : ''}`}>{userTier === 'designer' ? '🔒 1080p' : '1080p'}</button>
+                          </div>
+                        </section>
+
+                        <section className="space-y-2">
+                          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Aspect Ratio</h3>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button onClick={() => setVideoAspectRatio('16:9')} className={`py-2.5 rounded-lg border text-[9px] font-black flex items-center justify-center gap-2 ${videoAspectRatio === '16:9' ? 'bg-cyan-500 border-cyan-400 text-white' : 'border-white/10 text-slate-500 hover:border-white/20'}`}>
+                              <span className="w-6 h-4 border-2 border-current rounded-sm"></span>
+                              Landscape
+                            </button>
+                            <button onClick={() => setVideoAspectRatio('9:16')} className={`py-2.5 rounded-lg border text-[9px] font-black flex items-center justify-center gap-2 ${videoAspectRatio === '9:16' ? 'bg-cyan-500 border-cyan-400 text-white' : 'border-white/10 text-slate-500 hover:border-white/20'}`}>
+                              <span className="w-4 h-6 border-2 border-current rounded-sm"></span>
+                              Portrait
+                            </button>
+                          </div>
+                        </section>
+
+                        {videoMode === 'reference' && (
+                          <section className="space-y-2">
+                            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Reference Images <span className="text-white/30">(up to 3)</span></h3>
+                            <div className="grid grid-cols-3 gap-2">
+                              {[0, 1, 2].map((index) => (
+                                <div key={index} className="relative aspect-square">
+                                  {videoIngredients[index] ? (
+                                    <div className="relative w-full h-full group">
+                                      <img src={videoIngredients[index]} className="w-full h-full object-cover rounded-xl border border-white/10" />
+                                      <button
+                                        onClick={() => setVideoIngredients(prev => prev.filter((_, i) => i !== index))}
+                                        className="absolute top-1 right-1 w-5 h-5 bg-red-500/80 hover:bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                      >
+                                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <label className="block w-full h-full rounded-xl border border-dashed border-white/20 hover:border-cyan-400/50 cursor-pointer bg-white/5 transition-all flex items-center justify-center">
+                                      <span className="text-[10px] text-white/30 font-black">+ ADD</span>
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (file && videoIngredients.length < 3) {
+                                            const reader = new FileReader();
+                                            reader.onload = (ev) => {
+                                              const result = ev.target?.result as string;
+                                              setVideoIngredients(prev => [...prev, result]);
+                                            };
+                                            reader.readAsDataURL(file);
+                                          }
+                                          e.target.value = '';
+                                        }}
+                                      />
+                                    </label>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            <p className="text-[8px] text-white/30">Add reference images to guide your video's style and content</p>
+                          </section>
+                        )}
+
+                        <section className="space-y-4"><h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Atmosphere Directives</h3><textarea value={videoPrompt} onChange={(e) => setVideoPrompt(e.target.value)} placeholder="Describe the cinematic action..." className="w-full h-24 md:h-20 bg-white/5 border border-white/10 rounded-xl p-4 text-[10px] font-medium text-white outline-none focus:border-cyan-500/50 transition-all resize-none shadow-inner" /></section>
+                        <button onClick={handleGenerateVideo} disabled={videoLoading} className={`w-full py-3 md:py-4 rounded-xl font-black uppercase text-[9px] md:text-[10px] tracking-[0.3em] transition-all shadow-xl mt-4 ${videoLoading ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-cyan-500 text-white hover:bg-cyan-600 active:scale-95'}`}>{videoLoading ? 'Crafting...' : 'Synthesize Motion'}</button>
+                        <button onClick={() => setIsVideoStudioOpen(false)} className="w-full py-2 text-[9px] font-black uppercase tracking-[0.4em] text-slate-600 hover:text-white transition-all">Back to Home</button>
+                      </>
+                    )}
                   </>
                 ) : (
                   <div className="flex-1 flex flex-col gap-6">
