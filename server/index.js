@@ -82,9 +82,13 @@ app.post('/api/generate-art', async (req, res) => {
         // If both reference image and sketch are provided, add explicit merge instruction
         // We bypass this for 'edit' mode because edit mode needs pure inpainting instructions
         // as defined by the Google Docs template, without generic 'merge sketch' commands interfering.
-        if (config.referenceImage && sketchBase64 && config.styleId !== 'edit') {
-            userInstructions = `Merge and blend the drawn sketch elements naturally into the reference photo scene. ${userInstructions}`;
+        let drawingPrompt = '';
+        if (sketchBase64 && config.styleId !== 'edit') {
+            const context = config.referenceImage ? "into the reference photo scene" : "into a fully realized masterpiece";
+            drawingPrompt = `\nCRITICAL DRAWING INSTRUCTION: Interpret any drawn sketch marks as crude blueprints. DO NOT draw literal stick figures or ugly scribbles. ENHANCE the sketch perfectly ${context} matching the target style, and EXACTLY follow the user's typed command.`;
         }
+
+        userInstructions = `${userInstructions} ${drawingPrompt}`.trim();
 
         const finalPrompt = `
 ROLE: MASTER NEURAL ARTIST.
