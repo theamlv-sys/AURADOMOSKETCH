@@ -762,20 +762,24 @@ const App: React.FC = () => {
       // If we have a reference image OR a drawn sketch, we apply strict overrides based on mode
       // This ensures that even if you just draw a stick figure from scratch, the ENTIRE canvas
       // is rendered in the selected style, rather than just stylizing the drawing line itself.
+      let effectivePencilStyle = STYLE_PRESETS.find(s => s.id === 'pencil')?.prompt || "Graphite pencil sketch.";
+
       if (effectiveImage || effectiveSketch) {
         if (currentStyle?.id === 'edit') {
           effectivePrompt = `CRITICAL OVERRIDE: ${effectivePrompt}`;
+          // In Edit mode, the pencil preview should just show what's being edited as a sketch for visual feedback
+          effectivePencilStyle = `CRITICAL OVERRIDE: Redraw this entire composition as a rough pencil sketch. Destroy all photorealism.`;
         } else {
           effectivePrompt = `CRITICAL OVERRIDE: Redraw this entire composition as a BRAND NEW artwork. Destroy all original photorealism or blank space. TARGET STYLE: ${effectivePrompt}. Generate the entire frame in this style.`;
+          effectivePencilStyle = `CRITICAL OVERRIDE: Redraw this entire composition as a BRAND NEW artwork. Destroy all original photorealism or blank space. TARGET STYLE: ${effectivePencilStyle}. Generate the entire frame as a rough blueprint pencil sketch.`;
         }
       }
-      const pencilStyle = STYLE_PRESETS.find(s => s.id === 'pencil')?.prompt || "Graphite pencil sketch.";
 
       // We only generate pencil sketch if expanded to save tokens in condensed view
       const tasks = isExpanded
         ? [generateArtFromSketch(effectiveSketch, config, effectivePrompt)]
         : [
-          generateArtFromSketch(effectiveSketch, config, pencilStyle),
+          generateArtFromSketch(effectiveSketch, config, effectivePencilStyle),
           generateArtFromSketch(effectiveSketch, config, effectivePrompt)
         ];
 
