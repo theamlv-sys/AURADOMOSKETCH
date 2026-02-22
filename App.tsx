@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { saveAs } from 'file-saver';
 import DrawingCanvas, { DrawingCanvasRef } from './components/DrawingCanvas';
-import { generateArtFromSketch, generateVideoFromImage, analyzeVideoForSpeech, generateMixedVoiceover } from './services/geminiService';
+import { generateArtFromSketch, generateVideoFromImage, analyzeVideoForSpeech, generateMixedVoiceover, generateImageMode } from './services/geminiService';
 import { GenerationConfig, StylePreset, HistoryItem, VideoHistoryItem, VideoMode, SpeechSegment, VoiceName, VideoGenerationConfig, UserTier, VideoResolution, ModelMode } from './types';
 import { supabase } from './supabaseClient';
 import { User } from '@supabase/supabase-js';
@@ -984,27 +984,16 @@ const App: React.FC = () => {
       deductCredits(cost); // Automatically checks and deducts
       setImageModeLoading(true);
       setApiError(null);
-
-      const response = await fetch('/api/generate-image-mode', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: imageModePrompt,
-          images: imageModeImages,
-          modelMode: modelMode,
-          aspectRatio: imageModeAspectRatio,
-          resolution: imageModeResolution
-        })
+      const response = await generateImageMode({
+        prompt: imageModePrompt,
+        images: imageModeImages,
+        modelMode: modelMode,
+        aspectRatio: imageModeAspectRatio,
+        resolution: imageModeResolution
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      if (data.result) {
-        setGeneratedImageModeUrl(data.result);
+      if (response) {
+        setGeneratedImageModeUrl(response);
       } else {
         throw new Error('No image returned from server');
       }

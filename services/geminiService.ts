@@ -77,3 +77,8 @@ export const generateMixedVoiceover = async (segments: SpeechSegment[], voiceIns
   console.warn("Voiceover temporarily unavailable during transition.");
   return "";
 };
+
+export const generateImageMode = async (payload: any): Promise<string | null> => {
+  const data = await postToProxy("/generate-image-mode", payload);
+  return data.result;
+};
