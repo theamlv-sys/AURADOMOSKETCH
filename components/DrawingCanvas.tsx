@@ -42,6 +42,12 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   const lastSnapshotTime = useRef(0);
   const bgImageRef = useRef<HTMLImageElement | null>(null);
 
+  // Smooth drawing states
+  const lastPointPos = useRef<{x: number, y: number} | null>(null);
+  const lastMidPoint = useRef<{x: number, y: number} | null>(null);
+  const lastTime = useRef<number>(0);
+  const lastThickness = useRef<number>(0);
+
   const getCtx = () => {
     const c = canvasRef.current;
     if (!c) return null;
@@ -197,9 +203,6 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       const resScale = canvasRef.current!.width / 1024;
       const size = brushSize * resScale;
 
-      ctx.beginPath();
-      ctx.moveTo(coords.x, coords.y);
-
       if (tool === 'eraser') {
         ctx.globalCompositeOperation = 'destination-out';
         ctx.lineWidth = size * 2;
@@ -208,6 +211,16 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
         ctx.strokeStyle = color;
         ctx.lineWidth = size;
       }
+
+      ctx.beginPath();
+      ctx.moveTo(coords.x, coords.y);
+      ctx.lineTo(coords.x, coords.y); // Draw a dot immediately
+      ctx.stroke();
+
+      lastPointPos.current = coords;
+      lastMidPoint.current = coords;
+      lastTime.current = Date.now();
+      lastThickness.current = tool === 'eraser' ? size * 2 : size;
     }
   };
 
@@ -229,13 +242,49 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
 
     const coords = getCoords(e);
     const ctx = getCtx();
-    if (ctx) {
-      ctx.lineTo(coords.x, coords.y);
-      ctx.stroke();
+    if (ctx && lastPointPos.current && lastMidPoint.current) {
+      const prevPoint = lastPointPos.current;
+      const newPoint = coords;
+
+      const currentMid = {
+        x: (prevPoint.x + newPoint.x) / 2,
+        y: (prevPoint.y + newPoint.y) / 2
+      };
 
       const now = Date.now();
-      if (now - lastSnapshotTime.current > 800 && onRealTimeUpdate) {
-        lastSnapshotTime.current = now;
+      const dt = Math.max(1, now - lastTime.current);
+      const dx = newPoint.x - prevPoint.x;
+      const dy = newPoint.y - prevPoint.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const velocity = distance / dt;
+
+      const resScale = canvasRef.current!.width / 1024;
+      let targetSize = brushSize * resScale;
+
+      if (tool === 'brush') {
+        // Velocity-based brush size (thinner when moving faster)
+        targetSize = Math.max((brushSize * resScale) * 0.1, (brushSize * resScale) - (velocity * 3));
+      } else {
+        targetSize = brushSize * resScale * 2;
+      }
+
+      // Smooth thickness interpolation
+      const newThickness = lastThickness.current + (targetSize - lastThickness.current) * 0.15;
+      
+      ctx.lineWidth = newThickness;
+      ctx.beginPath();
+      ctx.moveTo(lastMidPoint.current.x, lastMidPoint.current.y);
+      ctx.quadraticCurveTo(prevPoint.x, prevPoint.y, currentMid.x, currentMid.y);
+      ctx.stroke();
+
+      lastPointPos.current = newPoint;
+      lastMidPoint.current = currentMid;
+      lastTime.current = now;
+      lastThickness.current = newThickness;
+
+      const snapshotNow = Date.now();
+      if (snapshotNow - lastSnapshotTime.current > 800 && onRealTimeUpdate) {
+        lastSnapshotTime.current = snapshotNow;
         onRealTimeUpdate(captureCanvas());
       }
     }
@@ -244,7 +293,19 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   const handleEnd = () => {
     if (isPanning.current) { isPanning.current = false; return; }
     if (!isDrawing.current) return;
+    
+    // Draw the final segment
+    const ctx = getCtx();
+    if (ctx && lastPointPos.current && lastMidPoint.current) {
+      ctx.beginPath();
+      ctx.moveTo(lastMidPoint.current.x, lastMidPoint.current.y);
+      ctx.lineTo(lastPointPos.current.x, lastPointPos.current.y);
+      ctx.stroke();
+    }
+
     isDrawing.current = false;
+    lastPointPos.current = null;
+    lastMidPoint.current = null;
     onStrokeEnd(captureCanvas());
   };
 

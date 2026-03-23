@@ -242,6 +242,7 @@ const App: React.FC = () => {
 
   // Tool Suite Toggle State
   const [isSuiteMinimized, setIsSuiteMinimized] = useState(false);
+  const [isPreviewMinimized, setIsPreviewMinimized] = useState(false);
 
   const [referenceImage, setReferenceImage] = useState<string | null>(() => {
     return localStorage.getItem('aura_reference_image');
@@ -1806,25 +1807,41 @@ const App: React.FC = () => {
                               </div>
                             </div>
                           </div>
-
                         </div>
                       </div>
                     )}
                     {/* LIVE PREVIEW - Smart Positioning to avoid overlap */}
-                    <div className={`absolute z-[130] w-40 md:w-96 pointer-events-none transition-all duration-500 ease-out right-4 ${isSuiteMinimized ? 'bottom-24' : 'bottom-4 md:bottom-10 md:right-10'}`}>
-                      <div className={`w-full ${getAspectClass()} rounded-[1.5rem] md:rounded-[2rem] border-2 border-cyan-500/40 overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.9)] relative bg-black/60 backdrop-blur-3xl pointer-events-auto group hover:scale-105 transition-transform duration-300`}>
-                        <div className="absolute top-3 left-4 z-20 flex items-center gap-2">
-                          <div className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${isLoading ? 'bg-yellow-500 animate-ping' : 'bg-green-500 shadow-[0_0_10px_#22c55e]'}`} />
-                          <span className="text-[7px] md:text-[9px] font-black uppercase tracking-[0.2em] text-white/90 drop-shadow-lg shadow-black">Aura Live</span>
+                    <div 
+                      className={`absolute z-[130] transition-all duration-500 ease-out right-4 ${isSuiteMinimized ? 'bottom-24' : 'bottom-4 md:bottom-10 md:right-10'} ${isPreviewMinimized ? 'w-24 md:w-32 translate-y-2 opacity-60 hover:opacity-100 hover:-translate-y-1 cursor-pointer pointer-events-auto drop-shadow-2xl' : 'w-40 md:w-96 pointer-events-none'}`}
+                      onClick={() => isPreviewMinimized && setIsPreviewMinimized(false)}
+                    >
+                      <div className={`w-full ${isPreviewMinimized ? 'aspect-video' : getAspectClass()} rounded-[1.5rem] md:rounded-[2rem] border-2 border-cyan-500/40 overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.9)] relative bg-black/60 backdrop-blur-3xl ${!isPreviewMinimized ? 'pointer-events-auto' : ''} group hover:scale-105 transition-all duration-300`}>
+                        <div className="absolute top-2 left-3 right-2 md:top-3 md:left-4 md:right-3 z-30 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${isLoading ? 'bg-yellow-500 animate-ping' : 'bg-green-500 shadow-[0_0_10px_#22c55e]'}`} />
+                            {!isPreviewMinimized && <span className="text-[7px] md:text-[9px] font-black uppercase tracking-[0.2em] text-white/90 drop-shadow-lg shadow-black">Aura Live</span>}
+                          </div>
+                          {!isPreviewMinimized && (
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setIsPreviewMinimized(true); }}
+                              className="p-1.5 bg-black/40 hover:bg-black/60 rounded-full text-white/70 hover:text-white transition-all backdrop-blur-md"
+                              title="Minimize Preview"
+                            >
+                              <svg className="w-3 h-3 md:w-4 md:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
+                            </button>
+                          )}
                         </div>
-                        {styleResult ? <img src={styleResult} className={`w-full h-full object-cover transition-all duration-300 ${isLoading ? 'opacity-40 blur-sm scale-105' : 'opacity-100 scale-100'}`} /> : <div className="absolute inset-0 flex items-center justify-center bg-white/5"><span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.4em] italic text-white/20">Initializing...</span></div>}
-                        {isLoading && <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[2px] z-10"><div className="w-8 h-8 md:w-12 md:h-12 border-[3px] md:border-[4px] border-cyan-400 border-t-transparent rounded-full animate-spin" /></div>}
+                        
+                        <div className="w-full h-full relative">
+                          {styleResult ? <img src={styleResult} className={`w-full h-full object-cover transition-all duration-300 ${isLoading ? 'opacity-40 blur-sm scale-105' : 'opacity-100 scale-100'}`} /> : <div className="absolute inset-0 flex items-center justify-center bg-white/5"><span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.4em] italic text-white/20">Initializing...</span></div>}
+                          {isLoading && <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[2px] z-10"><div className="w-6 h-6 md:w-12 md:h-12 border-[3px] md:border-[4px] border-cyan-400 border-t-transparent rounded-full animate-spin" /></div>}
+                        </div>
 
-                        {/* Upscale Button (Only if result exists) */}
-                        {styleResult && !isLoading && (
-                          <div className="absolute bottom-3 left-3 flex gap-2">
+                        {/* Upscale Button (Only if result exists & not minimized) */}
+                        {styleResult && !isLoading && !isPreviewMinimized && (
+                          <div className="absolute bottom-3 left-3 flex gap-2 z-20">
                             <button
-                              onClick={() => handleUpscale()}
+                              onClick={(e) => { e.stopPropagation(); handleUpscale(); }}
                               disabled={isUpscaling}
                               className="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-[9px] font-black uppercase tracking-widest rounded-lg shadow-lg flex items-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed group/btn"
                             >
@@ -1839,9 +1856,9 @@ const App: React.FC = () => {
                           </div>
                         )}
 
-                        {/* Download Overlay */}
-                        {styleResult && (
-                          <button onClick={() => handleDownload(styleResult)} className="absolute bottom-3 right-3 p-2 md:p-3 bg-cyan-500 hover:bg-cyan-600 rounded-full text-white shadow-xl opacity-0 group-hover:opacity-100 transition-all active:scale-90">
+                        {/* Download Overlay (Only if not minimized) */}
+                        {styleResult && !isPreviewMinimized && (
+                          <button onClick={(e) => { e.stopPropagation(); handleDownload(styleResult); }} className="absolute bottom-3 right-3 z-20 p-2 md:p-3 bg-cyan-500 hover:bg-cyan-600 rounded-full text-white shadow-xl opacity-0 group-hover:opacity-100 transition-all active:scale-90">
                             <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                           </button>
                         )}
