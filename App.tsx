@@ -570,6 +570,38 @@ const App: React.FC = () => {
     const extension = type === 'video' ? 'mp4' : 'png';
 
     try {
+      // SPECIAL HANDLING FOR VIDEOS: Avoid base64 crash and support mobile share
+      if (type === 'video') {
+         const res = await fetch(url);
+         const blob = await res.blob();
+         
+         // iOS/Mobile: use navigator.share if possible (easiest way to save video to camera roll)
+         if (navigator.share && /iPad|iPhone|iPod|Android/.test(navigator.userAgent)) {
+            try {
+               const file = new File([blob], filename, { type: 'video/mp4' });
+               if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                 await navigator.share({ files: [file], title: filename });
+                 return;
+               }
+            } catch(e) { 
+               console.log('Mobile share failed or cancelled', e); 
+               // Fall back to a-tag download if share fails
+            }
+         }
+
+         // Desktop or fallback mobile download
+         const blobUrl = window.URL.createObjectURL(blob);
+         const a = document.createElement('a');
+         a.href = blobUrl;
+         a.download = filename;
+         document.body.appendChild(a);
+         a.click();
+         document.body.removeChild(a);
+         window.URL.revokeObjectURL(blobUrl);
+         console.log(`[Download] Directly downloaded video: ${filename}`);
+         return;
+      }
+
       let base64Data: string;
 
       // Extract base64 data from URL
@@ -619,7 +651,7 @@ const App: React.FC = () => {
           const handle = await (window as any).showSaveFilePicker({
             suggestedName: filename,
             types: [{
-              description: type === 'video' ? 'Video File' : 'Image File',
+              description: 'Image File',
               accept: { [mimeType]: [`.${extension}`] }
             }]
           });

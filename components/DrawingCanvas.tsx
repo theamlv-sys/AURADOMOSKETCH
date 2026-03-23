@@ -143,8 +143,23 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     }
 
     if (canvas.width !== width || canvas.height !== height) {
+      // Save content before resizing to prevent deletion
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+      const tCtx = tempCanvas.getContext('2d');
+      if (tCtx) tCtx.drawImage(canvas, 0, 0);
+
       canvas.width = width;
       canvas.height = height;
+
+      // Restore content into center of new canvas
+      const ctx = getCtx();
+      if (ctx && canvas.width > 0 && canvas.height > 0) {
+        const dx = (width - tempCanvas.width) / 2;
+        const dy = (height - tempCanvas.height) / 2;
+        ctx.drawImage(tempCanvas, dx, dy);
+      }
     }
   }, [aspectRatio]);
 
