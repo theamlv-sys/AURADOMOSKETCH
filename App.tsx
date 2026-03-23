@@ -295,7 +295,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (user && userTier && !isRealTimePaused) {
       // Start Burning
-      const rate = modelMode === 'pro' ? BURN_RATES.REAL_TIME_PRO : BURN_RATES.REAL_TIME_STANDARD;
+      const rate = modelMode === 'pro' || modelMode === 'nano2' ? BURN_RATES.REAL_TIME_PRO : BURN_RATES.REAL_TIME_STANDARD;
       startBurn(rate);
     } else {
       stopBurn();
@@ -744,7 +744,7 @@ const App: React.FC = () => {
     try {
       // DEDUCT COST PER IMAGE GENERATED
       // Standard = 0.1, Pro = 0.2 (Double the price)
-      const imageCost = modelMode === 'pro' ? BURN_RATES.IMAGE_GEN_PRO : BURN_RATES.IMAGE_GEN_STANDARD;
+      const imageCost = modelMode === 'pro' || modelMode === 'nano2' ? BURN_RATES.IMAGE_GEN_PRO : BURN_RATES.IMAGE_GEN_STANDARD;
       deductCredits(imageCost);
 
       const combinedPrompt = directives.map((d, i) => `Mandatory Detail ${i + 1}: ${d}`).join('\n');
@@ -752,8 +752,8 @@ const App: React.FC = () => {
 
       // Determine Model: 'standard' (Flash) vs 'pro' (Pro Preview)
       // Standard = Nano Banana (Flash)
-      // Pro = Nano Banana Pro (Gemini 3 Pro)
-      const selectedModel = modelMode === 'pro' ? 'gemini-3-pro-image-preview' : 'gemini-2.5-flash-image';
+      // Nano 2 = Nano Banana 2 (Gemini 3.1 Flash Preview)
+      const selectedModel = modelMode === 'pro' ? 'gemini-3-pro-image-preview' : modelMode === 'nano2' ? 'gemini-3.1-flash-image-preview' : 'gemini-2.5-flash-image';
 
       const config: GenerationConfig = {
         prompt: combinedPrompt,
@@ -978,7 +978,7 @@ const App: React.FC = () => {
     }
 
     if (!userTier) return;
-    const isPro = modelMode === 'pro';
+    const isPro = modelMode === 'pro' || modelMode === 'nano2';
     const cost = isPro ? BURN_RATES.IMAGE_GEN_PRO : BURN_RATES.IMAGE_GEN_STANDARD;
 
     try {
@@ -1303,6 +1303,7 @@ const App: React.FC = () => {
           {userTier !== 'designer' && userTier !== 'visitor' && (
             <div className="hidden md:flex bg-black/30 border border-white/10 rounded-full p-1 backdrop-blur-md">
               <button onClick={() => setModelMode('standard')} className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all duration-300 ${modelMode === 'standard' ? 'bg-white/15 text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}>Std</button>
+              <button onClick={() => setModelMode('nano2')} className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all duration-300 ${modelMode === 'nano2' ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white shadow-lg shadow-yellow-500/40' : 'text-slate-500 hover:text-white'}`}>Nano 2</button>
               <button onClick={() => setModelMode('pro')} className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all duration-300 ${modelMode === 'pro' ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/40' : 'text-slate-500 hover:text-white'}`}>Pro</button>
             </div>
           )}
@@ -1543,8 +1544,9 @@ const App: React.FC = () => {
           {userTier !== 'designer' && userTier !== 'visitor' && (
             <section className="md:hidden">
               <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-500 mb-4">AI Engine</h3>
-              <div className={`grid grid-cols-2 gap-2 p-1 rounded-2xl border ${theme === 'dark' ? 'bg-black/50 border-white/5' : 'bg-slate-100 border-slate-200'}`}>
-                <button onClick={() => setModelMode('standard')} className={`py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${modelMode === 'standard' ? (theme === 'dark' ? 'bg-white/10 text-white' : 'bg-white text-slate-900 shadow-sm') : 'text-slate-400'}`}>Standard</button>
+              <div className={`grid grid-cols-3 gap-2 p-1 rounded-2xl border ${theme === 'dark' ? 'bg-black/50 border-white/5' : 'bg-slate-100 border-slate-200'}`}>
+                <button onClick={() => setModelMode('standard')} className={`py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${modelMode === 'standard' ? (theme === 'dark' ? 'bg-white/10 text-white' : 'bg-white text-slate-900 shadow-sm') : 'text-slate-400'}`}>Std</button>
+                <button onClick={() => setModelMode('nano2')} className={`py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${modelMode === 'nano2' ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white shadow-lg shadow-yellow-500/30' : 'text-slate-400'}`}>Nano 2</button>
                 <button onClick={() => setModelMode('pro')} className={`py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${modelMode === 'pro' ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/30' : 'text-slate-400'}`}>Pro</button>
               </div>
             </section>
@@ -2044,7 +2046,7 @@ const App: React.FC = () => {
                         <section className="space-y-2">
                           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400 flex items-center justify-between">
                             Reference Images
-                            <span className="text-[8px] text-white/40">{imageModeImages.length} / {modelMode === 'pro' ? 5 : 3}</span>
+                            <span className="text-[8px] text-white/40">{imageModeImages.length} / {modelMode === 'standard' ? 3 : 5}</span>
                           </h3>
                           <div className="grid grid-cols-5 gap-2">
                             {/* Render existing images */}
@@ -2057,7 +2059,7 @@ const App: React.FC = () => {
                               </div>
                             ))}
                             {/* Render Add Button if under limit */}
-                            {imageModeImages.length < (modelMode === 'pro' ? 5 : 3) && (
+                            {imageModeImages.length < (modelMode === 'standard' ? 3 : 5) && (
                               <label className="block aspect-square rounded-xl border border-dashed border-white/20 hover:border-cyan-400/50 cursor-pointer bg-white/5 transition-all flex flex-col items-center justify-center gap-1 group">
                                 <span className="text-[12px] text-white/30 group-hover:text-cyan-400 transition-colors">+</span>
                                 <input type="file" accept="image/*" className="hidden" onChange={(e) => {
@@ -2092,7 +2094,7 @@ const App: React.FC = () => {
                           </div>
                         </section>
 
-                        {modelMode === 'pro' && (
+                        {modelMode !== 'standard' && (
                           <section className="space-y-2">
                             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Pro Resolution</h3>
                             <div className="grid grid-cols-3 gap-2">

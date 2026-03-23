@@ -6,7 +6,7 @@ export interface DrawingState {
 }
 
 export type UserTier = 'designer' | 'producer' | 'studio' | 'visitor';
-export type ModelMode = 'standard' | 'pro';
+export type ModelMode = 'standard' | 'nano2' | 'pro';
 
 export interface HistoryItem {
   id: string;
