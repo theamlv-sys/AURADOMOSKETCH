@@ -1,5 +1,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 import { saveAs } from 'file-saver';
 import DrawingCanvas, { DrawingCanvasRef } from './components/DrawingCanvas';
 import { generateArtFromSketch, generateVideoFromImage, analyzeVideoForSpeech, generateMixedVoiceover, generateImageMode } from './services/geminiService';
@@ -635,7 +637,23 @@ const App: React.FC = () => {
         }
       }
 
-      // Get file from server with proper headers
+      // 📱 NATIVE APP SAVE (CAPACITOR API) 📱
+      if (Capacitor.isNativePlatform() && type === 'image') {
+        try {
+          await Filesystem.writeFile({
+            path: filename,
+            data: base64Data,
+            directory: Directory.Documents
+          });
+          console.log(`[Download] Saved securely to Native App Documents: ${filename}`);
+          // Fall through just in case, or we can return to prevent web fallback
+          return;
+        } catch (capError) {
+          console.error('[Download] Native Save Failed, attempting fallback:', capError);
+        }
+      }
+
+      // Get file from server with proper headers (WEB MODE ONLY)
       const downloadResponse = await fetch(`${API_BASE_URL}/api/download`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
