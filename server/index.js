@@ -16,10 +16,13 @@ console.log('[Startup] Backup Key:', process.env.GEMINI_API_KEY_BACKUP ? 'Set' :
 
 
 // Initialize Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripeKey = process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder';
+const stripe = new Stripe(stripeKey);
 
 // Initialize Supabase Admin (for verifying payments and upgrading users securely)
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+const supabaseUrl = process.env.SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY || 'placeholder_key';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Middleware
 app.use(cors());
