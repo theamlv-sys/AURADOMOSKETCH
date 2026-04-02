@@ -1,6 +1,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { saveAs } from 'file-saver';
 import DrawingCanvas, { DrawingCanvasRef } from './components/DrawingCanvas';
@@ -140,6 +141,44 @@ const App: React.FC = () => {
   // AUTO-RESTORE REMOVED PER USER REQUEST: Credits should burn to 0 naturally.
   // Master Admin can use the recharge button or manual dashboard tools if needed.
 
+  // 📱 NATIVE DEEP LINK INTERCEPTOR FOR OAUTH 📱
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      CapApp.addListener('appUrlOpen', async (data) => {
+        if (data.url.includes('login-callback')) {
+          console.log('Intercepted Google Auth deep link:', data.url);
+          
+          try {
+            // 1. Check for PKCE ?code= (Supabase v2 default)
+            const urlObj = new URL(data.url);
+            const code = urlObj.searchParams.get('code');
+            
+            if (code) {
+              console.log('Exchanging PKCE code for session...');
+              await supabase.auth.exchangeCodeForSession(code);
+              return;
+            }
+
+            // 2. Check for Implicit Flow #access_token= (Fallback)
+            const fragment = data.url.split('#')[1];
+            if (fragment) {
+              const params = new URLSearchParams(fragment);
+              const access_token = params.get('access_token');
+              const refresh_token = params.get('refresh_token');
+              
+              if (access_token && refresh_token) {
+                console.log('Injecting Implicit access_token directly...');
+                await supabase.auth.setSession({ access_token, refresh_token });
+              }
+            }
+          } catch (err) {
+            console.error('Failed to parse native auth deep link:', err);
+          }
+        }
+      });
+    }
+  }, []);
+
   useEffect(() => {
     // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -194,10 +233,15 @@ const App: React.FC = () => {
   };
 
   const handleGoogleLogin = async () => {
+    // If native, bounce back to custom URI scheme instead of HTTPS domain
+    const redirectUrl = Capacitor.isNativePlatform() 
+      ? 'com.auradomo.sketch://login-callback' 
+      : window.location.origin;
+
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin,
+        redirectTo: redirectUrl,
         queryParams: {
           prompt: 'select_account'
         }
@@ -1272,7 +1316,7 @@ const App: React.FC = () => {
 
   // MAIN APP
   return (
-    <div className={`h-screen flex flex-col transition-all duration-700 ${theme === 'dark' ? 'bg-[#030303] text-slate-200' : 'bg-[#fcfcfc] text-slate-900'} overflow-hidden font-sans`}>
+    <div className={`h-screen flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] transition-all duration-700 ${theme === 'dark' ? 'bg-[#030303] text-slate-200' : 'bg-[#fcfcfc] text-slate-900'} overflow-hidden font-sans`}>
       {/* UPGRADE MODAL */}
       {showUpgradeModal && (
         <div className="fixed inset-0 z-[999] bg-black/90 backdrop-blur-xl flex items-center justify-center p-6">
